@@ -329,16 +329,16 @@ function AIImportPanel({onImport}){
     setLoading(true);setStatus("Analysing with AI…");
     const sys=`You are an expert grants analyst for RGN, a South African labour rights NPO. Extract funder/grant information and return ONLY valid JSON (no markdown, no explanation) with these exact keys:
 {"grantName":"descriptive opportunity name","funderName":"exact funder name","applicationURL":"website URL or empty string","description":"2-3 sentence description","contactEmail":"","contactName":"","contactPhone":"","funderType":"one of: Government,Private Foundation,Corporate CSI,Government SETA,International Foundation,Corporate ESD,Bilateral Donor,Trust,DFI","categoryTag":"one of: Labour Rights,Access to Justice,Youth Employment,Skills Training,Worker Education,Legal Empowerment,Civil Society,Social Justice,Gender Justice,Economic Justice,Enterprise Development,Digital Skills","amountRequested":"if mentioned else empty","eligibilityStatus":"Eligible or description","pillar":"one of: Labour Justice & Inclusion,Skills Development & Workforce Acceleration,Enterprise Development & Formalisation,Market Access & Aggregation","sectors":["array of 1-3 from: Labour & Legal Services,Skills Development (SETA/QCTO),Digital & 4IR,Personal Care & Beauty,Cleaning & Hygiene,Green Economy & Agritech,Manufacturing,Creative Industries,Technical Trades,Healthcare,Retail & Township Trade,Youth Employability,Cooperative Development,Infrastructure & Innovation Hubs,Funding & Investment Facilitation"],"province":"one of: Gauteng,Western Cape,KwaZulu-Natal,Eastern Cape,Limpopo,Mpumalanga,North West,Free State,Northern Cape,National","revenueType":"one of: Grant,Corporate Contract,Management Fee,Hybrid,SETA Levy,CSI,International Aid","strategicAlignmentScore":3,"loiDeadline":"YYYY-MM-DD or empty","fullProposalDeadline":"YYYY-MM-DD or empty","sustainabilityPlan":"","revenueDiversification":""}`;
-    const content=mode==="text"?[{type:"text",text:`Extract grant info:\n\n${text}`}]:[{type:"image",source:{type:"base64",media_type:"image/png",data:image}},{type:"text",text:"Extract all grant/funder information from this image as the specified JSON."}];
+    const body=mode==="text"?{mode,text}:{mode,image};
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:sys,messages:[{role:"user",content}]})});
-      const data=await res.json();
-      const raw=data.content?.[0]?.text||"";
-      const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());
+      const res=await fetch("/api/ai-import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+      if(!res.ok){const err=await res.text();throw new Error("Server error: "+err);}
+      const parsed=await res.json();
+      if(parsed.error)throw new Error(parsed.error);
       setStatus("✅ Fields populated! Review the Basic & Sector tabs then save.");
       setLoading(false);
       onImport(parsed);
-    }catch(e){setStatus("⚠️ Could not parse — try pasting cleaner text or a clearer image.");setLoading(false);}
+    }catch(e){console.error(e);setStatus("⚠️ "+(e.message||"AI import failed. Check Vercel environment variables."));setLoading(false);}
   }
   return(
     <div style={{display:"grid",gap:14}}>
