@@ -313,6 +313,179 @@ function Detail({grant,team,onUpdate,onClose}){
   );
 }
 
+function parseGrantText(raw) {
+  const t = raw;
+  const tl = t.toLowerCase();
+
+  // ── URL ──────────────────────────────────────────────────────────────────
+  const urlMatch = t.match(/https?:\/\/[^\s"'\)]+|www\.[^\s"'\)]+/i);
+  const applicationURL = urlMatch ? (urlMatch[0].startsWith('http') ? urlMatch[0] : 'https://' + urlMatch[0]) : '';
+
+  // ── EMAIL ─────────────────────────────────────────────────────────────────
+  const emailMatch = t.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+  const contactEmail = emailMatch ? emailMatch[0] : '';
+
+  // ── PHONE ─────────────────────────────────────────────────────────────────
+  const phoneMatch = t.match(/(\+27|0)[0-9\s\-]{8,12}/);
+  const contactPhone = phoneMatch ? phoneMatch[0].trim() : '';
+
+  // ── CONTACT NAME ─────────────────────────────────────────────────────────
+  const contactNameMatch = t.match(/contact[:\s]+([A-Z][a-z]+ [A-Z][a-z]+)/i);
+  const contactName = contactNameMatch ? contactNameMatch[1] : '';
+
+  // ── FUNDER NAME ──────────────────────────────────────────────────────────
+  // Try first line, or text in parentheses, or first capitalised phrase
+  const lines = t.split('\n').map(l => l.trim()).filter(Boolean);
+  let funderName = '';
+  for (const line of lines) {
+    const clean = line.replace(/^[\*\-•#\d\.]+\s*/, '').trim();
+    if (clean.length > 3 && clean.length < 120 && /[A-Z]/.test(clean) && !/^(focus|who|apply|website|contact|description|about|note|email|phone)/i.test(clean)) {
+      funderName = clean.replace(/\s*\(.*\)\s*$/, '').trim();
+      break;
+    }
+  }
+
+  // ── GRANT NAME ───────────────────────────────────────────────────────────
+  const grantNameMatch = t.match(/grant\s+name[:\s]+(.+)/i) || t.match(/opportunity[:\s]+(.+)/i) || t.match(/programme[:\s]+(.+)/i);
+  const grantName = grantNameMatch ? grantNameMatch[1].trim() : (funderName ? funderName + ' — Grant Opportunity' : 'New Grant Opportunity');
+
+  // ── AMOUNT ───────────────────────────────────────────────────────────────
+  const amountMatches = t.match(/R[\s]?[\d,]+(?:\s*[-–]\s*R[\s]?[\d,]+)?(?:\s*(?:million|m|k))?|\$[\d,]+(?:\s*[-–]\s*\$[\d,]+)?(?:\s*000)?/gi);
+  let amountRequested = '';
+  if (amountMatches && amountMatches.length > 0) {
+    amountRequested = amountMatches.slice(0, 2).join(' – ').replace(/\s+/g, ' ').trim();
+  }
+
+  // ── DATES ─────────────────────────────────────────────────────────────────
+  function parseDate(str) {
+    if (!str) return '';
+    // YYYY-MM-DD
+    let m = str.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+    // DD/MM/YYYY or DD-MM-YYYY
+    m = str.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+    // "31 March 2026" or "March 31, 2026"
+    const months = {january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12',jan:'01',feb:'02',mar:'03',apr:'04',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+    m = str.match(/(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})/i);
+    if (m) return `${m[3]}-${months[m[2].toLowerCase()]}-${m[1].padStart(2,'0')}`;
+    m = str.match(/(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2}),?\s+(\d{4})/i);
+    if (m) return `${m[3]}-${months[m[1].toLowerCase()]}-${m[2].padStart(2,'0')}`;
+    return '';
+  }
+  const loiMatch = t.match(/(?:loi|letter of intent|expression of interest|eoi)[^\n]*?(\d{1,2}[\s\/\-]\w+[\s\/\-]\d{4}|\d{4}-\d{2}-\d{2})/i);
+  const proposalMatch = t.match(/(?:full proposal|submission|deadline|due)[^\n]*?(\d{1,2}[\s\/\-]\w+[\s\/\-]\d{4}|\d{4}-\d{2}-\d{2})/i);
+  const loiDeadline = loiMatch ? parseDate(loiMatch[1]) : '';
+  const fullProposalDeadline = proposalMatch ? parseDate(proposalMatch[1]) : '';
+
+  // ── PILLAR ─────────────────────────────────────────────────────────────────
+  let pillar = 'Labour Justice & Inclusion';
+  if (/skill|training|learner|seta|qcto|nvq|nqf|education|workforce|employment|youth employ/i.test(tl)) pillar = 'Skills Development & Workforce Acceleration';
+  else if (/enterprise|small business|sme|cooperativ|formalisa|informal economy|entrepreneur/i.test(tl)) pillar = 'Enterprise Development & Formalisation';
+  else if (/market access|agri|supply chain|aggregat|value chain|export/i.test(tl)) pillar = 'Market Access & Aggregation';
+  else if (/labour|legal|worker|ccma|lra|bcea|justice|rights|access to justice|union/i.test(tl)) pillar = 'Labour Justice & Inclusion';
+
+  // ── SECTORS ───────────────────────────────────────────────────────────────
+  const sectorMap = [
+    ['Labour & Legal Services', /labour|legal|ccma|workers right|lra|bcea|paralegal|law clinic/i],
+    ['Skills Development (SETA/QCTO)', /seta|qcto|nqf|learnership|skills development|nvq|accreditat/i],
+    ['Digital & 4IR', /digital|4ir|technolog|software|coding|cyber|ict|data science/i],
+    ['Youth Employability', /youth|young people|school leaver|graduate|unemployed youth/i],
+    ['Healthcare', /health|clinic|medical|hiv|tb|primary care|mental health/i],
+    ['Green Economy & Agritech', /green|agri|climate|solar|renewable|environment|food security/i],
+    ['Manufacturing', /manufactur|production|factory|industrial/i],
+    ['Cooperative Development', /cooperativ|co-op/i],
+    ['Creative Industries', /creative|arts|culture|media|music|film/i],
+    ['Retail & Township Trade', /retail|township|spaza|informal trade|market/i],
+    ['Infrastructure & Innovation Hubs', /infrastructure|hub|innovation centre|incubat/i],
+    ['Funding & Investment Facilitation', /investment|fund|impact invest|blended financ/i],
+  ];
+  const sectors = sectorMap.filter(([,re]) => re.test(tl)).map(([s]) => s).slice(0, 3);
+  if (sectors.length === 0) sectors.push('Labour & Legal Services');
+
+  // ── FUNDER TYPE ───────────────────────────────────────────────────────────
+  let funderType = 'Private Foundation';
+  if (/department|ministry|government|dept\.|municipality|metro|provincial/i.test(tl)) funderType = 'Government';
+  else if (/seta\b/i.test(tl)) funderType = 'Government SETA';
+  else if (/csi|corporate social/i.test(tl)) funderType = 'Corporate CSI';
+  else if (/esd|enterprise.*development/i.test(tl)) funderType = 'Corporate ESD';
+  else if (/foundation|trust|fund\b/i.test(tl)) funderType = 'Private Foundation';
+  else if (/usaid|dfid|eu |european|giz|uk aid|bilateral/i.test(tl)) funderType = 'Bilateral Donor';
+  else if (/dfi|development finance|dbsa|ifc|afd/i.test(tl)) funderType = 'DFI';
+
+  // ── REVENUE TYPE ──────────────────────────────────────────────────────────
+  let revenueType = 'Grant';
+  if (/csi\b/i.test(tl)) revenueType = 'CSI';
+  else if (/seta|levy/i.test(tl)) revenueType = 'SETA Levy';
+  else if (/international|global|overseas|usaid|ford foundation|open society/i.test(tl)) revenueType = 'International Aid';
+  else if (/contract|service provider/i.test(tl)) revenueType = 'Corporate Contract';
+
+  // ── CATEGORY TAG ──────────────────────────────────────────────────────────
+  let categoryTag = 'Labour Rights';
+  if (/access to justice|legal empowerment|paralegal/i.test(tl)) categoryTag = 'Access to Justice';
+  else if (/legal empowerment/i.test(tl)) categoryTag = 'Legal Empowerment';
+  else if (/youth employ|young people|school leaver/i.test(tl)) categoryTag = 'Youth Employment';
+  else if (/skill|training|learner/i.test(tl)) categoryTag = 'Skills Training';
+  else if (/worker education|workers right/i.test(tl)) categoryTag = 'Worker Education';
+  else if (/civil society|ngo|nonprofit/i.test(tl)) categoryTag = 'Civil Society';
+  else if (/social justice|inequalit/i.test(tl)) categoryTag = 'Social Justice';
+  else if (/enterprise|small business/i.test(tl)) categoryTag = 'Enterprise Development';
+  else if (/gender|women|feminis/i.test(tl)) categoryTag = 'Gender Justice';
+
+  // ── PROVINCE ──────────────────────────────────────────────────────────────
+  let province = 'National';
+  const provMap = [['Gauteng',/gauteng|johannesburg|pretoria|soweto|tshwane|ekurhuleni/i],['Western Cape',/western cape|cape town|stellenbosch/i],['KwaZulu-Natal',/kwazulu|natal|durban|pietermaritzburg/i],['Eastern Cape',/eastern cape|port elizabeth|gqeberha/i],['Limpopo',/limpopo|polokwane/i],['Mpumalanga',/mpumalanga|nelspruit/i],['North West',/north west|rustenburg/i],['Free State',/free state|bloemfontein/i],['Northern Cape',/northern cape|kimberley/i]];
+  for (const [p, re] of provMap) { if (re.test(tl)) { province = p; break; } }
+
+  // ── ALIGNMENT SCORE ───────────────────────────────────────────────────────
+  let score = 3;
+  const highAlign = ['labour rights','access to justice','legal empowerment','worker','ccma','lra','civil society','grassroots','marginalised'];
+  const bonusAlign = ['unrestricted','core funding','township','informal','south africa','npo','ngo'];
+  score += highAlign.filter(w => tl.includes(w)).length > 0 ? 1 : 0;
+  score += bonusAlign.filter(w => tl.includes(w)).length >= 2 ? 1 : 0;
+  score = Math.min(5, Math.max(1, score));
+
+  // ── DESCRIPTION ───────────────────────────────────────────────────────────
+  // Pull the most informative lines
+  const focusMatch = t.match(/(?:focus areas?|focus)[:\s]+([^\n]+)/i);
+  const whoMatch = t.match(/(?:who can apply|eligib|for)[:\s]+([^\n]+)/i);
+  const aboutMatch = t.match(/(?:about|overview|programme)[:\s]+([^\n]+)/i);
+  let description = '';
+  if (focusMatch) description += focusMatch[1].trim() + '. ';
+  if (whoMatch) description += 'Eligible applicants: ' + whoMatch[1].trim() + '. ';
+  if (aboutMatch && description.length < 80) description += aboutMatch[1].trim() + '.';
+  if (!description && lines.length > 1) description = lines.slice(1, 4).join(' ').trim();
+
+  // ── ELIGIBILITY ───────────────────────────────────────────────────────────
+  const eligMatch = t.match(/(?:who can apply|eligible|eligib[a-z]*)[:\s]+([^\n]+)/i);
+  const eligibilityStatus = eligMatch ? eligMatch[1].trim() : 'Eligible';
+
+  return {
+    grantName,
+    funderName,
+    applicationURL,
+    description: description.trim() || funderName + ' — grant opportunity for registered NPOs and NGOs.',
+    contactName,
+    contactEmail,
+    contactPhone,
+    funderType,
+    categoryTag,
+    amountRequested,
+    eligibilityStatus,
+    pillar,
+    sectors,
+    province,
+    revenueType,
+    strategicAlignmentScore: score,
+    loiDeadline,
+    fullProposalDeadline,
+    internalReviewDeadline: '',
+    sustainabilityPlan: '',
+    revenueDiversification: '',
+    status: 'Opportunity Identified',
+  };
+}
+
 function AIImportPanel({onImport}){
   const[mode,setMode]=useState("text");
   const[text,setText]=useState("");
@@ -322,32 +495,39 @@ function AIImportPanel({onImport}){
   const[status,setStatus]=useState("");
   const[drag,setDrag]=useState(false);
   const fileRef=useRef();
-  function handleFile(file){const r=new FileReader();r.onload=e=>{setImgPreview(e.target.result);setImage(e.target.result.split(",")[1]);};r.readAsDataURL(file);}
-  async function run(){
-    if(mode==="text"&&!text.trim())return;
-    if(mode==="image"&&!image)return;
-    setLoading(true);setStatus("Analysing with AI…");
-    const sys=`You are an expert grants analyst for RGN, a South African labour rights NPO. Extract funder/grant information and return ONLY valid JSON (no markdown, no explanation) with these exact keys:
-{"grantName":"descriptive opportunity name","funderName":"exact funder name","applicationURL":"website URL or empty string","description":"2-3 sentence description","contactEmail":"","contactName":"","contactPhone":"","funderType":"one of: Government,Private Foundation,Corporate CSI,Government SETA,International Foundation,Corporate ESD,Bilateral Donor,Trust,DFI","categoryTag":"one of: Labour Rights,Access to Justice,Youth Employment,Skills Training,Worker Education,Legal Empowerment,Civil Society,Social Justice,Gender Justice,Economic Justice,Enterprise Development,Digital Skills","amountRequested":"if mentioned else empty","eligibilityStatus":"Eligible or description","pillar":"one of: Labour Justice & Inclusion,Skills Development & Workforce Acceleration,Enterprise Development & Formalisation,Market Access & Aggregation","sectors":["array of 1-3 from: Labour & Legal Services,Skills Development (SETA/QCTO),Digital & 4IR,Personal Care & Beauty,Cleaning & Hygiene,Green Economy & Agritech,Manufacturing,Creative Industries,Technical Trades,Healthcare,Retail & Township Trade,Youth Employability,Cooperative Development,Infrastructure & Innovation Hubs,Funding & Investment Facilitation"],"province":"one of: Gauteng,Western Cape,KwaZulu-Natal,Eastern Cape,Limpopo,Mpumalanga,North West,Free State,Northern Cape,National","revenueType":"one of: Grant,Corporate Contract,Management Fee,Hybrid,SETA Levy,CSI,International Aid","strategicAlignmentScore":3,"loiDeadline":"YYYY-MM-DD or empty","fullProposalDeadline":"YYYY-MM-DD or empty","sustainabilityPlan":"","revenueDiversification":""}`;
-    const body=mode==="text"?{mode,text}:{mode,image};
-    try{
-      const res=await fetch("/api/ai-import",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-      if(!res.ok){const err=await res.text();throw new Error("Server error: "+err);}
-      const parsed=await res.json();
-      if(parsed.error)throw new Error(parsed.error);
-      setStatus("✅ Fields populated! Review the Basic & Sector tabs then save.");
-      setLoading(false);
-      onImport(parsed);
-    }catch(e){console.error(e);setStatus("⚠️ "+(e.message||"AI import failed. Check Vercel environment variables."));setLoading(false);}
+
+  function handleFile(file){
+    const r=new FileReader();
+    r.onload=e=>{setImgPreview(e.target.result);setImage(e.target.result);};
+    r.readAsDataURL(file);
   }
+
+  function run(){
+    if(mode==="text"){
+      if(!text.trim()){setStatus("⚠️ Please paste some funder text first.");return;}
+      setLoading(true);setStatus("Parsing…");
+      setTimeout(()=>{
+        try{
+          const result=parseGrantText(text);
+          setStatus("✅ Done! "+Object.keys(result).filter(k=>result[k]&&result[k]!=="").length+" fields filled — review then save.");
+          setLoading(false);
+          onImport(result);
+        }catch(e){setStatus("⚠️ Could not parse. Try pasting more structured text.");setLoading(false);}
+      },600);
+    } else {
+      if(!image){setStatus("⚠️ Please upload an image first.");return;}
+      setStatus("⚠️ Image reading requires OCR — please copy text from the image and use Paste Text mode instead.");
+    }
+  }
+
   return(
     <div style={{display:"grid",gap:14}}>
       <div style={{background:"rgba(200,131,42,0.06)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:11,padding:"13px 16px"}}>
-        <div style={{fontSize:12,color:"#c8832a",fontWeight:700,marginBottom:4}}>✦ AI Quick Import</div>
-        <div style={{fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>Paste funder text, a website URL copy, an email, or upload a screenshot — AI will auto-fill all the form fields for you.</div>
+        <div style={{fontSize:12,color:"#c8832a",fontWeight:700,marginBottom:4}}>✦ Smart Import — No API Key Required</div>
+        <div style={{fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>Paste any funder text — website copy, email, WhatsApp message, document — and every field is auto-filled instantly. Works offline, no setup needed.</div>
       </div>
       <div style={{display:"flex",gap:0,background:"rgba(0,0,0,0.3)",borderRadius:9,padding:3,border:"1px solid rgba(200,131,42,0.12)"}}>
-        {[["text","📋 Paste Text"],["image","🖼️ Upload Image / Screenshot"]].map(([id,label])=>(
+        {[["text","📋 Paste Text"],["image","🖼️ Upload Image"]].map(([id,label])=>(
           <button key={id} onClick={()=>{setMode(id);setStatus("");}} style={{flex:1,padding:"9px 12px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",border:"none",background:mode===id?"linear-gradient(135deg,rgba(200,131,42,0.22),rgba(200,131,42,0.1))":"transparent",color:mode===id?"#c8832a":"#3a4a5a",letterSpacing:0.5,transition:"all 0.2s",fontFamily:"inherit"}}>
             {label}
           </button>
@@ -355,35 +535,39 @@ function AIImportPanel({onImport}){
       </div>
       {mode==="text"&&(
         <div>
-          <label style={L}>Paste funder info, website text, email, or WhatsApp message</label>
-          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"e.g.\n\nDevelopment Bank of Southern Africa (DBSA)\n• Focus Areas: Education & Health (townships)\n• Who Can Apply: Registered NPOs, NGOs\n• Website: www.dbsa.org/sustainability/csi\n\n— or paste an entire email / webpage section"} style={{...I,height:160,resize:"vertical",fontSize:12,lineHeight:1.85,padding:"12px 14px"}}/>
-          <div style={{fontSize:11,color:"#2a3a2a",marginTop:4}}>Tip: more text = better results. Paste the whole email or website section.</div>
+          <label style={L}>Paste funder info — website, email, WhatsApp, document</label>
+          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"Example — paste anything like this:\n\nDevelopment Bank of Southern Africa (DBSA)\n• Focus Areas: Education & Health (townships and rural areas)\n• Who Can Apply: Registered NPOs, NGOs, and public benefit organizations\n• Application: Unsolicited applications welcome\n• Website: www.dbsa.org/sustainability/csi\n\nThe more text you paste, the better the results."} style={{...I,height:180,resize:"vertical",fontSize:12,lineHeight:1.85,padding:"12px 14px"}}/>
+          <div style={{fontSize:11,color:"#2a3a2a",marginTop:5}}>💡 Tip: paste the full email or website section. Includes name, URL, focus areas, eligibility, amounts, deadlines.</div>
         </div>
       )}
       {mode==="image"&&(
         <div>
-          <label style={L}>Screenshot of funder website, email, or document</label>
-          <div onClick={()=>fileRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);}} style={{border:`2px dashed ${drag?"#c8832a":"rgba(200,131,42,0.22)"}`,borderRadius:11,padding:"22px 16px",textAlign:"center",cursor:"pointer",background:drag?"rgba(200,131,42,0.06)":"rgba(255,255,255,0.02)",transition:"all 0.2s",minHeight:110,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
-            {imgPreview?<img src={imgPreview} alt="" style={{maxHeight:130,maxWidth:"100%",borderRadius:7,objectFit:"contain"}}/>:<><div style={{fontSize:30,opacity:0.3}}>📸</div><div style={{fontSize:13,color:"#3a4a5a"}}>Click or drag & drop a screenshot</div><div style={{fontSize:11,color:"#1a2a3a"}}>Works with emails, websites, WhatsApp forwards, PDFs</div></>}
+          <label style={L}>Upload a screenshot or photo</label>
+          <div onClick={()=>fileRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);}} style={{border:`2px dashed ${drag?"#c8832a":"rgba(200,131,42,0.22)"}`,borderRadius:11,padding:"22px 16px",textAlign:"center",cursor:"pointer",background:drag?"rgba(200,131,42,0.06)":"rgba(255,255,255,0.02)",transition:"all 0.2s",minHeight:120,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
+            {imgPreview?<img src={imgPreview} alt="" style={{maxHeight:130,maxWidth:"100%",borderRadius:7,objectFit:"contain"}}/>:<><div style={{fontSize:30,opacity:0.3}}>📸</div><div style={{fontSize:13,color:"#3a4a5a"}}>Click or drag & drop a screenshot</div></>}
           </div>
           <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])handleFile(e.target.files[0]);}}/>
-          {imgPreview&&<button onClick={()=>{setImage(null);setImgPreview(null);}} style={{marginTop:6,background:"transparent",border:"none",color:"#5a3a3a",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>× Remove image</button>}
+          {imgPreview&&<button onClick={()=>{setImage(null);setImgPreview(null);}} style={{marginTop:6,background:"transparent",border:"none",color:"#5a3a3a",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>× Remove</button>}
+          <div style={{marginTop:9,background:"rgba(200,131,42,0.05)",border:"1px solid rgba(200,131,42,0.12)",borderRadius:8,padding:"10px 13px",fontSize:12,color:"#7a6a5a",lineHeight:1.75}}>
+            📋 <strong style={{color:"#c8832a"}}>Best workflow for images:</strong> Open the screenshot → select all text → copy → switch to Paste Text tab and paste. This gives the best results.
+          </div>
         </div>
       )}
-      <button onClick={run} disabled={loading||(mode==="text"?!text.trim():!image)} style={{width:"100%",padding:"13px",background:loading?"rgba(200,131,42,0.08)":"linear-gradient(135deg,#c8832a,#a06020)",border:loading?"1px solid rgba(200,131,42,0.25)":"none",borderRadius:10,color:loading?"#c8832a":"#fff",fontSize:13,fontWeight:700,cursor:loading||(!text.trim()&&!image)?"not-allowed":"pointer",letterSpacing:2,boxShadow:loading?"none":"0 6px 24px rgba(200,131,42,0.4)",transition:"all 0.2s",display:"flex",alignItems:"center",justifyContent:"center",gap:9,fontFamily:"inherit"}}>
-        {loading?<><span style={{display:"inline-block",animation:"aispin 1s linear infinite"}}>⟳</span> {status}</>:<>✦ AUTO-FILL ALL FIELDS WITH AI</>}
+      <button onClick={run} disabled={loading} style={{width:"100%",padding:"13px",background:loading?"rgba(200,131,42,0.08)":"linear-gradient(135deg,#c8832a,#a06020)",border:loading?"1px solid rgba(200,131,42,0.25)":"none",borderRadius:10,color:loading?"#c8832a":"#fff",fontSize:13,fontWeight:700,cursor:loading?"not-allowed":"pointer",letterSpacing:2,boxShadow:loading?"none":"0 6px 24px rgba(200,131,42,0.4)",transition:"all 0.2s",display:"flex",alignItems:"center",justifyContent:"center",gap:9,fontFamily:"inherit"}}>
+        {loading?<><span style={{display:"inline-block",animation:"aispin 1s linear infinite"}}>⟳</span> Parsing…</>:<>✦ AUTO-FILL ALL FIELDS</>}
       </button>
-      {status&&!loading&&<div style={{background:status.startsWith("✅")?"rgba(40,160,80,0.08)":"rgba(200,80,60,0.08)",border:`1px solid ${status.startsWith("✅")?"rgba(40,160,80,0.3)":"rgba(200,80,60,0.3)"}`,borderRadius:8,padding:"10px 14px",fontSize:13,color:status.startsWith("✅")?"#60c880":"#ff9070",textAlign:"center",lineHeight:1.7}}>{status}</div>}
+      {status&&<div style={{background:status.startsWith("✅")?"rgba(40,160,80,0.08)":"rgba(200,80,60,0.08)",border:`1px solid ${status.startsWith("✅")?"rgba(40,160,80,0.3)":"rgba(200,80,60,0.3)"}`,borderRadius:8,padding:"10px 14px",fontSize:13,color:status.startsWith("✅")?"#60c880":"#ff9070",textAlign:"center",lineHeight:1.7}}>{status}</div>}
       <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:9,padding:"12px 16px"}}>
-        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:8}}>WHAT GETS AUTO-FILLED</div>
+        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:8}}>WHAT GETS AUTO-DETECTED</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
-          {["Funder name & type","Grant description","Application URL","Strategic pillar","Sectors (1–3)","Province & revenue type","Alignment score ★","Deadlines (if mentioned)","Eligibility notes","Contact details"].map(f=>(<div key={f} style={{fontSize:12,color:"#3a5a3a",display:"flex",gap:5,alignItems:"center"}}><span style={{color:"#c8832a",fontSize:9}}>◆</span>{f}</div>))}
+          {["Funder name","Website URL","Email & phone","Grant description","Strategic pillar","Sectors (1–3)","Province","Revenue type","Alignment score ★","LOI & proposal deadlines","Eligibility status","Funder type"].map(f=>(<div key={f} style={{fontSize:12,color:"#3a5a3a",display:"flex",gap:5,alignItems:"center"}}><span style={{color:"#c8832a",fontSize:9}}>◆</span>{f}</div>))}
         </div>
       </div>
       <style>{`@keyframes aispin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   );
 }
+
 
 function GrantModal({initial,team,onSave,onClose}){
   const BLANK={id:"",grantName:"",funderName:"",applicationURL:"",description:"",contactName:"",contactEmail:"",contactPhone:"",contactLinkedIn:"",amountRequested:"",totalBudget:"",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"Government",categoryTag:"Labour Rights",pillar:"Labour Justice & Inclusion",sectors:[],partnerType:"",province:"Gauteng",revenueType:"Grant",strategicAlignmentScore:3,loiDeadline:"",fullProposalDeadline:"",internalReviewDeadline:"",followupDate:"",reportingDeadline:"",reapplicationDate:"",assignedLead:"",supportTeam:[],dateAssigned:new Date().toISOString().slice(0,10),projectWeekStart:"",targetWeek:"",status:"Opportunity Identified",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"",target:"",current:""}],sustainabilityPlan:"",revenueDiversification:"",corporateLinkages:"",reapplicationFlag:false,nextFundingWindow:"",isArchived:false,archiveReason:"",documentChecklist:DEFAULT_DOCS.map(d=>({...d})),documentLinks:[{name:"",url:""}],activities:[]};
