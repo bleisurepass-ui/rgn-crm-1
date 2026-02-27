@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 
 const STAGES_ACTIVE = ["Opportunity Identified","Researching","Draft In Progress","Internal Review","Submitted","Under Review","Awarded","Implementation","Reporting","Completed"];
 const STAGES_TERMINAL = ["Declined","Closed Before Applying","Stopped / Strategic Pause","Reapplication Eligible","Archived"];
@@ -313,11 +313,91 @@ function Detail({grant,team,onUpdate,onClose}){
   );
 }
 
+function AIImportPanel({onImport}){
+  const[mode,setMode]=useState("text");
+  const[text,setText]=useState("");
+  const[image,setImage]=useState(null);
+  const[imgPreview,setImgPreview]=useState(null);
+  const[loading,setLoading]=useState(false);
+  const[status,setStatus]=useState("");
+  const[drag,setDrag]=useState(false);
+  const fileRef=useRef();
+  function handleFile(file){const r=new FileReader();r.onload=e=>{setImgPreview(e.target.result);setImage(e.target.result.split(",")[1]);};r.readAsDataURL(file);}
+  async function run(){
+    if(mode==="text"&&!text.trim())return;
+    if(mode==="image"&&!image)return;
+    setLoading(true);setStatus("Analysing with AI…");
+    const sys=`You are an expert grants analyst for RGN, a South African labour rights NPO. Extract funder/grant information and return ONLY valid JSON (no markdown, no explanation) with these exact keys:
+{"grantName":"descriptive opportunity name","funderName":"exact funder name","applicationURL":"website URL or empty string","description":"2-3 sentence description","contactEmail":"","contactName":"","contactPhone":"","funderType":"one of: Government,Private Foundation,Corporate CSI,Government SETA,International Foundation,Corporate ESD,Bilateral Donor,Trust,DFI","categoryTag":"one of: Labour Rights,Access to Justice,Youth Employment,Skills Training,Worker Education,Legal Empowerment,Civil Society,Social Justice,Gender Justice,Economic Justice,Enterprise Development,Digital Skills","amountRequested":"if mentioned else empty","eligibilityStatus":"Eligible or description","pillar":"one of: Labour Justice & Inclusion,Skills Development & Workforce Acceleration,Enterprise Development & Formalisation,Market Access & Aggregation","sectors":["array of 1-3 from: Labour & Legal Services,Skills Development (SETA/QCTO),Digital & 4IR,Personal Care & Beauty,Cleaning & Hygiene,Green Economy & Agritech,Manufacturing,Creative Industries,Technical Trades,Healthcare,Retail & Township Trade,Youth Employability,Cooperative Development,Infrastructure & Innovation Hubs,Funding & Investment Facilitation"],"province":"one of: Gauteng,Western Cape,KwaZulu-Natal,Eastern Cape,Limpopo,Mpumalanga,North West,Free State,Northern Cape,National","revenueType":"one of: Grant,Corporate Contract,Management Fee,Hybrid,SETA Levy,CSI,International Aid","strategicAlignmentScore":3,"loiDeadline":"YYYY-MM-DD or empty","fullProposalDeadline":"YYYY-MM-DD or empty","sustainabilityPlan":"","revenueDiversification":""}`;
+    const content=mode==="text"?[{type:"text",text:`Extract grant info:\n\n${text}`}]:[{type:"image",source:{type:"base64",media_type:"image/png",data:image}},{type:"text",text:"Extract all grant/funder information from this image as the specified JSON."}];
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:sys,messages:[{role:"user",content}]})});
+      const data=await res.json();
+      const raw=data.content?.[0]?.text||"";
+      const parsed=JSON.parse(raw.replace(/```json|```/g,"").trim());
+      setStatus("✅ Fields populated! Review the Basic & Sector tabs then save.");
+      setLoading(false);
+      onImport(parsed);
+    }catch(e){setStatus("⚠️ Could not parse — try pasting cleaner text or a clearer image.");setLoading(false);}
+  }
+  return(
+    <div style={{display:"grid",gap:14}}>
+      <div style={{background:"rgba(200,131,42,0.06)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:11,padding:"13px 16px"}}>
+        <div style={{fontSize:12,color:"#c8832a",fontWeight:700,marginBottom:4}}>✦ AI Quick Import</div>
+        <div style={{fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>Paste funder text, a website URL copy, an email, or upload a screenshot — AI will auto-fill all the form fields for you.</div>
+      </div>
+      <div style={{display:"flex",gap:0,background:"rgba(0,0,0,0.3)",borderRadius:9,padding:3,border:"1px solid rgba(200,131,42,0.12)"}}>
+        {[["text","📋 Paste Text"],["image","🖼️ Upload Image / Screenshot"]].map(([id,label])=>(
+          <button key={id} onClick={()=>{setMode(id);setStatus("");}} style={{flex:1,padding:"9px 12px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",border:"none",background:mode===id?"linear-gradient(135deg,rgba(200,131,42,0.22),rgba(200,131,42,0.1))":"transparent",color:mode===id?"#c8832a":"#3a4a5a",letterSpacing:0.5,transition:"all 0.2s",fontFamily:"inherit"}}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {mode==="text"&&(
+        <div>
+          <label style={L}>Paste funder info, website text, email, or WhatsApp message</label>
+          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"e.g.\n\nDevelopment Bank of Southern Africa (DBSA)\n• Focus Areas: Education & Health (townships)\n• Who Can Apply: Registered NPOs, NGOs\n• Website: www.dbsa.org/sustainability/csi\n\n— or paste an entire email / webpage section"} style={{...I,height:160,resize:"vertical",fontSize:12,lineHeight:1.85,padding:"12px 14px"}}/>
+          <div style={{fontSize:11,color:"#2a3a2a",marginTop:4}}>Tip: more text = better results. Paste the whole email or website section.</div>
+        </div>
+      )}
+      {mode==="image"&&(
+        <div>
+          <label style={L}>Screenshot of funder website, email, or document</label>
+          <div onClick={()=>fileRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);}} style={{border:`2px dashed ${drag?"#c8832a":"rgba(200,131,42,0.22)"}`,borderRadius:11,padding:"22px 16px",textAlign:"center",cursor:"pointer",background:drag?"rgba(200,131,42,0.06)":"rgba(255,255,255,0.02)",transition:"all 0.2s",minHeight:110,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
+            {imgPreview?<img src={imgPreview} alt="" style={{maxHeight:130,maxWidth:"100%",borderRadius:7,objectFit:"contain"}}/>:<><div style={{fontSize:30,opacity:0.3}}>📸</div><div style={{fontSize:13,color:"#3a4a5a"}}>Click or drag & drop a screenshot</div><div style={{fontSize:11,color:"#1a2a3a"}}>Works with emails, websites, WhatsApp forwards, PDFs</div></>}
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])handleFile(e.target.files[0]);}}/>
+          {imgPreview&&<button onClick={()=>{setImage(null);setImgPreview(null);}} style={{marginTop:6,background:"transparent",border:"none",color:"#5a3a3a",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>× Remove image</button>}
+        </div>
+      )}
+      <button onClick={run} disabled={loading||(mode==="text"?!text.trim():!image)} style={{width:"100%",padding:"13px",background:loading?"rgba(200,131,42,0.08)":"linear-gradient(135deg,#c8832a,#a06020)",border:loading?"1px solid rgba(200,131,42,0.25)":"none",borderRadius:10,color:loading?"#c8832a":"#fff",fontSize:13,fontWeight:700,cursor:loading||(!text.trim()&&!image)?"not-allowed":"pointer",letterSpacing:2,boxShadow:loading?"none":"0 6px 24px rgba(200,131,42,0.4)",transition:"all 0.2s",display:"flex",alignItems:"center",justifyContent:"center",gap:9,fontFamily:"inherit"}}>
+        {loading?<><span style={{display:"inline-block",animation:"aispin 1s linear infinite"}}>⟳</span> {status}</>:<>✦ AUTO-FILL ALL FIELDS WITH AI</>}
+      </button>
+      {status&&!loading&&<div style={{background:status.startsWith("✅")?"rgba(40,160,80,0.08)":"rgba(200,80,60,0.08)",border:`1px solid ${status.startsWith("✅")?"rgba(40,160,80,0.3)":"rgba(200,80,60,0.3)"}`,borderRadius:8,padding:"10px 14px",fontSize:13,color:status.startsWith("✅")?"#60c880":"#ff9070",textAlign:"center",lineHeight:1.7}}>{status}</div>}
+      <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:9,padding:"12px 16px"}}>
+        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:8}}>WHAT GETS AUTO-FILLED</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
+          {["Funder name & type","Grant description","Application URL","Strategic pillar","Sectors (1–3)","Province & revenue type","Alignment score ★","Deadlines (if mentioned)","Eligibility notes","Contact details"].map(f=>(<div key={f} style={{fontSize:12,color:"#3a5a3a",display:"flex",gap:5,alignItems:"center"}}><span style={{color:"#c8832a",fontSize:9}}>◆</span>{f}</div>))}
+        </div>
+      </div>
+      <style>{`@keyframes aispin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+    </div>
+  );
+}
+
 function GrantModal({initial,team,onSave,onClose}){
   const BLANK={id:"",grantName:"",funderName:"",applicationURL:"",description:"",contactName:"",contactEmail:"",contactPhone:"",contactLinkedIn:"",amountRequested:"",totalBudget:"",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"Government",categoryTag:"Labour Rights",pillar:"Labour Justice & Inclusion",sectors:[],partnerType:"",province:"Gauteng",revenueType:"Grant",strategicAlignmentScore:3,loiDeadline:"",fullProposalDeadline:"",internalReviewDeadline:"",followupDate:"",reportingDeadline:"",reapplicationDate:"",assignedLead:"",supportTeam:[],dateAssigned:new Date().toISOString().slice(0,10),projectWeekStart:"",targetWeek:"",status:"Opportunity Identified",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"",target:"",current:""}],sustainabilityPlan:"",revenueDiversification:"",corporateLinkages:"",reapplicationFlag:false,nextFundingWindow:"",isArchived:false,archiveReason:"",documentChecklist:DEFAULT_DOCS.map(d=>({...d})),documentLinks:[{name:"",url:""}],activities:[]};
   const[form,setForm]=useState(initial?{...BLANK,...initial}:{...BLANK,id:uid()});
-  const[tab,setTab]=useState("basic");
+  const[tab,setTab]=useState(initial?.id?"basic":"ai");
+  const[flashFields,setFlashFields]=useState([]);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  function handleAIImport(parsed){
+    setForm(p=>({...p,...parsed}));
+    const filled=Object.keys(parsed).filter(k=>parsed[k]&&parsed[k]!==""&&!(Array.isArray(parsed[k])&&parsed[k].length===0));
+    setFlashFields(filled);
+    setTimeout(()=>setFlashFields([]),3000);
+    setTab("basic");
+  }
   return(
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:60,overflow:"auto",padding:"20px 16px",backdropFilter:"blur(8px)"}} onClick={onClose}>
       <div style={{background:"linear-gradient(160deg,#0a1525,#07101c)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:14,width:"100%",maxWidth:680,boxShadow:"0 40px 100px rgba(0,0,0,0.9)",marginTop:12}} onClick={e=>e.stopPropagation()}>
@@ -330,12 +410,14 @@ function GrantModal({initial,team,onSave,onClose}){
             <button onClick={onClose} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#5a6a7a",width:34,height:34,cursor:"pointer",fontSize:18,flexShrink:0,lineHeight:1}}>×</button>
           </div>
           <div style={{display:"flex",gap:0,overflowX:"auto"}}>
-            {[["basic","Basic"],["sector","Sector"],["financials","Financials"],["deadlines","Deadlines"],["team","Team"],["documents","Docs"]].map(([id,label])=>(
-              <button key={id} onClick={()=>setTab(id)} style={{padding:"9px 14px",fontSize:12,cursor:"pointer",background:"transparent",border:"none",borderBottom:tab===id?"2px solid #c8832a":"2px solid transparent",color:tab===id?"#c8832a":"#3a4a5a",whiteSpace:"nowrap"}}>{label}</button>
+            {[["ai","✦ AI Import"],["basic","Basic"],["sector","Sector"],["financials","Financials"],["deadlines","Deadlines"],["team","Team"],["documents","Docs"]].map(([id,label])=>(
+              <button key={id} onClick={()=>setTab(id)} style={{padding:"9px 14px",fontSize:12,cursor:"pointer",background:"transparent",border:"none",borderBottom:tab===id?"2px solid #c8832a":"2px solid transparent",color:tab===id?"#c8832a":"#3a4a5a",whiteSpace:"nowrap",fontFamily:"inherit"}}>{label}</button>
             ))}
           </div>
         </div>
         <div style={{padding:"18px 24px",maxHeight:"55vh",overflowY:"auto"}}>
+          {flashFields.length>0&&tab!=="ai"&&<div style={{background:"rgba(200,131,42,0.07)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:9,padding:"9px 14px",fontSize:12,color:"#c8a060",display:"flex",alignItems:"center",gap:8,marginBottom:12}}><span style={{fontSize:15}}>✦</span> AI filled {flashFields.length} fields — review and adjust if needed.</div>}
+          {tab==="ai"&&<AIImportPanel onImport={handleAIImport}/>}
           {tab==="basic"&&<div style={{display:"grid",gap:14}}>
             <div style={S_style}>Basic Details</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
