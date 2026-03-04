@@ -1,981 +1,1037 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 
-const STAGES_ACTIVE = ["Opportunity Identified","Researching","Draft In Progress","Internal Review","Submitted","Under Review","Awarded","Implementation","Reporting","Completed"];
-const STAGES_TERMINAL = ["Declined","Closed Before Applying","Stopped / Strategic Pause","Reapplication Eligible","Archived"];
-const STAGES = [...STAGES_ACTIVE, ...STAGES_TERMINAL];
+const STAGES_ACTIVE=["Opportunity Identified","Researching","Draft In Progress","Internal Review","Submitted","Under Review","Awarded","Implementation","Reporting","Completed"];
+const STAGES_TERMINAL=["Declined","Closed Before Applying","Stopped / Strategic Pause","Reapplication Eligible","Archived"];
+const STAGES=[...STAGES_ACTIVE,...STAGES_TERMINAL];
+const PILLARS=["Labour Justice & Inclusion","Skills Development & Workforce Acceleration","Enterprise Development & Formalisation","Market Access & Aggregation"];
+const SECTORS=["Labour & Legal Services","Skills Development (SETA/QCTO)","Digital & 4IR","Healthcare","Green Economy & Agritech","Manufacturing","Creative Industries","Technical Trades","Retail & Township Trade","Youth Employability","Cooperative Development","Infrastructure & Innovation Hubs","Funding & Investment Facilitation","Personal Care & Beauty","Cleaning & Hygiene"];
+const PROVINCES=["Gauteng","Western Cape","KwaZulu-Natal","Eastern Cape","Limpopo","Mpumalanga","North West","Free State","Northern Cape","National"];
+const REVENUE_TYPES=["Grant","Corporate Contract","Management Fee","Hybrid","SETA Levy","CSI","International Aid"];
+const FUNDER_TYPES=["Government","Private Foundation","Corporate CSI","Government SETA","International Foundation","Corporate ESD","Bilateral Donor","Trust","DFI"];
+const CATEGORY_TAGS=["Labour Rights","Access to Justice","Youth Employment","Skills Training","Worker Education","Legal Empowerment","Civil Society","Social Justice","Gender Justice","Economic Justice","Enterprise Development","Digital Skills"];
+const BUDGET_CATS=["Personnel","Travel & Transport","Accommodation","Training Materials","Venue Hire","Communications","Admin & Overheads","Equipment","Sub-Contracts","M&E","Contingency","Other"];
+const DEFAULT_TEAM=["Director","Naledi K.","Sipho M.","Thabo D."];
 
-const PILLARS = ["Labour Justice & Inclusion","Skills Development & Workforce Acceleration","Enterprise Development & Formalisation","Market Access & Aggregation"];
-const SECTORS = ["Labour & Legal Services","Skills Development (SETA/QCTO)","Digital & 4IR","Personal Care & Beauty","Cleaning & Hygiene","Green Economy & Agritech","Manufacturing","Creative Industries","Technical Trades","Healthcare","Retail & Township Trade","Youth Employability","Cooperative Development","Infrastructure & Innovation Hubs","Funding & Investment Facilitation"];
-const PARTNER_TYPES = ["SETA","Corporate","School / University","Youth Organisation","Municipality","Funder","Government Dept.","NGO / NPO","International Body"];
-const PROVINCES = ["Gauteng","Western Cape","KwaZulu-Natal","Eastern Cape","Limpopo","Mpumalanga","North West","Free State","Northern Cape","National"];
-const REVENUE_TYPES = ["Grant","Corporate Contract","Management Fee","Hybrid","SETA Levy","CSI","International Aid"];
-const FUNDER_TYPES = ["Government","Private Foundation","Corporate CSI","Government SETA","International Foundation","Corporate ESD","Bilateral Donor","Trust","DFI"];
-const CATEGORY_TAGS = ["Labour Rights","Access to Justice","Youth Employment","Skills Training","Worker Education","Legal Empowerment","Civil Society","Social Justice","Gender Justice","Economic Justice","Enterprise Development","Digital Skills"];
-
-const STAGE_GUIDE = {
-  "Opportunity Identified":    {tip:"Verify eligibility, confirm alignment with RGN's pillars, and assess strategic fit before investing research time.",icon:"🔍"},
-  "Researching":               {tip:"Actively gathering intel. Find past grantees, identify programme officer, download application guidelines, confirm deadline.",icon:"📚"},
-  "Draft In Progress":         {tip:"Writing phase. Match narrative language to funder's stated priorities. Assign a lead writer and a reviewer.",icon:"✍️"},
-  "Internal Review":           {tip:"Draft complete — circulate to Director and relevant staff. Set firm internal deadline at least 5 days before funder's deadline.",icon:"👁"},
-  "Submitted":                 {tip:"Application sent. Log confirmation number, submission date, and portal link. Send a thank-you note to your programme officer.",icon:"📤"},
-  "Under Review":              {tip:"Funder is reviewing. Stay available for questions. Prepare for a potential site visit, reference check, or budget clarification.",icon:"⏳"},
-  "Awarded":                   {tip:"Grant awarded! Set up reporting schedule, disbursement tracker, compliance checklist, and impact measurement plan.",icon:"🏆"},
-  "Implementation":            {tip:"Programme is running. Log monthly progress notes, beneficiary counts, and variances against approved budget and work plan.",icon:"⚙️"},
-  "Reporting":                 {tip:"Reporting phase. Compile evidence: case data, financial records, photos, testimonials. Submit reports on time.",icon:"📋"},
-  "Completed":                 {tip:"Grant cycle complete. Log final impact data, lessons learned, and assess reapplication eligibility.",icon:"✅"},
-  "Declined":                  {tip:"Application unsuccessful. Log the reason if given, request funder feedback, and decide whether to reapply next cycle.",icon:"📎"},
-  "Closed Before Applying":    {tip:"Decision made not to pursue this cycle. Record the reason and set a reminder for the next funding window.",icon:"🔒"},
-  "Stopped / Strategic Pause": {tip:"Temporarily paused. Document the reason and conditions under which this application would be reactivated.",icon:"⏸"},
-  "Reapplication Eligible":    {tip:"Previous cycle declined or completed. Prepare a stronger application using feedback and new impact data.",icon:"🔁"},
-  "Archived":                  {tip:"Inactive — record kept for history and analysis. Reactivate if funder reopens or becomes relevant again.",icon:"📦"},
+const STAGE_GUIDE={
+  "Opportunity Identified":{tip:"Verify eligibility, confirm alignment with RGN pillars, and assess strategic fit before investing research time.",icon:"🔍"},
+  "Researching":{tip:"Actively gathering intel. Find past grantees, identify programme officer, download application guidelines, confirm deadline.",icon:"📚"},
+  "Draft In Progress":{tip:"Writing phase. Match narrative language to funder's stated priorities. Assign a lead writer and a reviewer.",icon:"✍️"},
+  "Internal Review":{tip:"Draft complete — circulate to Director and relevant staff. Set firm internal deadline at least 5 days before funder deadline.",icon:"👁"},
+  "Submitted":{tip:"Application sent. Log confirmation number, submission date, and portal link. Send a thank-you note to your programme officer.",icon:"📤"},
+  "Under Review":{tip:"Funder is reviewing. Stay available for questions. Prepare for a potential site visit, reference check, or budget clarification.",icon:"⏳"},
+  "Awarded":{tip:"Grant awarded! Set up reporting schedule, disbursement tracker, compliance checklist, and impact measurement plan.",icon:"🏆"},
+  "Implementation":{tip:"Programme is running. Log monthly progress notes, beneficiary counts, and variances against approved budget and work plan.",icon:"⚙️"},
+  "Reporting":{tip:"Reporting phase. Compile evidence: case data, financial records, photos, testimonials. Submit reports on time.",icon:"📋"},
+  "Completed":{tip:"Grant cycle complete. Log final impact data, lessons learned, and assess reapplication eligibility.",icon:"✅"},
+  "Declined":{tip:"Application unsuccessful. Log the reason if given, request funder feedback, and decide whether to reapply next cycle.",icon:"📎"},
+  "Closed Before Applying":{tip:"Decision made not to pursue this cycle. Record the reason and set a reminder for the next funding window.",icon:"🔒"},
+  "Stopped / Strategic Pause":{tip:"Temporarily paused. Document the reason and conditions under which this application would be reactivated.",icon:"⏸"},
+  "Reapplication Eligible":{tip:"Previous cycle declined or completed. Prepare a stronger application using feedback and new impact data.",icon:"🔁"},
+  "Archived":{tip:"Inactive — record kept for history and analysis.",icon:"📦"},
 };
 
-const STAGE_COLORS = {
-  "Opportunity Identified":    {bg:"#0f1a28",border:"#1a3040",dot:"#3a6080",text:"#7aadcc"},
-  "Researching":               {bg:"#0f1530",border:"#1a2550",dot:"#3a50a0",text:"#7a90d0"},
-  "Draft In Progress":         {bg:"#1a1030",border:"#302050",dot:"#6030a0",text:"#a070d0"},
-  "Internal Review":           {bg:"#281a08",border:"#503010",dot:"#c87020",text:"#e09040"},
-  "Submitted":                 {bg:"#081825",border:"#0f3050",dot:"#1a70b0",text:"#50a0d0"},
-  "Under Review":              {bg:"#082020",border:"#104040",dot:"#108080",text:"#40b0a0"},
-  "Awarded":                   {bg:"#082010",border:"#104020",dot:"#1a8040",text:"#40b060"},
-  "Implementation":            {bg:"#101830",border:"#182840",dot:"#2a5080",text:"#5080b0"},
-  "Reporting":                 {bg:"#201808",border:"#402810",dot:"#a07020",text:"#c8a040"},
-  "Completed":                 {bg:"#101a10",border:"#203020",dot:"#408040",text:"#60a860"},
-  "Declined":                  {bg:"#201010",border:"#401818",dot:"#802020",text:"#c06060"},
-  "Closed Before Applying":    {bg:"#181818",border:"#282828",dot:"#484848",text:"#888888"},
-  "Stopped / Strategic Pause": {bg:"#1a1408",border:"#302408",dot:"#706020",text:"#a09040"},
-  "Reapplication Eligible":    {bg:"#101828",border:"#1a2840",dot:"#2a4878",text:"#5a88c0"},
-  "Archived":                  {bg:"#101010",border:"#1a1a1a",dot:"#303030",text:"#505050"},
+const SC={
+  "Opportunity Identified":{bg:"#0f1a28",border:"#1a3040",dot:"#3a6080",text:"#7aadcc"},
+  "Researching":{bg:"#0f1530",border:"#1a2550",dot:"#3a50a0",text:"#7a90d0"},
+  "Draft In Progress":{bg:"#1a1030",border:"#302050",dot:"#6030a0",text:"#a070d0"},
+  "Internal Review":{bg:"#281a08",border:"#503010",dot:"#c87020",text:"#e09040"},
+  "Submitted":{bg:"#081825",border:"#0f3050",dot:"#1a70b0",text:"#50a0d0"},
+  "Under Review":{bg:"#082020",border:"#104040",dot:"#108080",text:"#40b0a0"},
+  "Awarded":{bg:"#082010",border:"#104020",dot:"#1a8040",text:"#40b060"},
+  "Implementation":{bg:"#101830",border:"#182840",dot:"#2a5080",text:"#5080b0"},
+  "Reporting":{bg:"#201808",border:"#402810",dot:"#a07020",text:"#c8a040"},
+  "Completed":{bg:"#101a10",border:"#203020",dot:"#408040",text:"#60a860"},
+  "Declined":{bg:"#201010",border:"#401818",dot:"#802020",text:"#c06060"},
+  "Closed Before Applying":{bg:"#181818",border:"#282828",dot:"#484848",text:"#888"},
+  "Stopped / Strategic Pause":{bg:"#1a1408",border:"#302408",dot:"#706020",text:"#a09040"},
+  "Reapplication Eligible":{bg:"#101828",border:"#1a2840",dot:"#2a4878",text:"#5a88c0"},
+  "Archived":{bg:"#101010",border:"#1a1a1a",dot:"#303030",text:"#505050"},
+};
+const PC={
+  "Labour Justice & Inclusion":{bg:"rgba(200,131,42,0.1)",b:"rgba(200,131,42,0.3)",t:"#c8a060",dot:"#c8832a"},
+  "Skills Development & Workforce Acceleration":{bg:"rgba(80,100,180,0.12)",b:"rgba(80,100,180,0.35)",t:"#8090d0",dot:"#5070c0"},
+  "Enterprise Development & Formalisation":{bg:"rgba(60,140,80,0.12)",b:"rgba(60,140,80,0.35)",t:"#60b870",dot:"#408050"},
+  "Market Access & Aggregation":{bg:"rgba(120,60,160,0.12)",b:"rgba(120,60,160,0.35)",t:"#a060c8",dot:"#8040b0"},
 };
 
-const PILLAR_COLORS = {
-  "Labour Justice & Inclusion":                  {bg:"rgba(200,131,42,0.09)",b:"rgba(200,131,42,0.32)",t:"#c8832a",dot:"#c8832a"},
-  "Skills Development & Workforce Acceleration": {bg:"rgba(50,100,200,0.09)",b:"rgba(50,100,200,0.32)",t:"#5080d0",dot:"#5080d0"},
-  "Enterprise Development & Formalisation":      {bg:"rgba(40,160,80,0.09)",b:"rgba(40,160,80,0.32)",t:"#40a060",dot:"#40a060"},
-  "Market Access & Aggregation":                 {bg:"rgba(160,50,160,0.09)",b:"rgba(160,50,160,0.32)",t:"#a050a0",dot:"#a050a0"},
-};
+const DEFAULT_DOCS=[
+  {name:"Project concept note / proposal",done:false,file:null},{name:"Detailed budget breakdown",done:false,file:null},
+  {name:"Signed cover letter",done:false,file:null},{name:"Theory of change",done:false,file:null},
+  {name:"M&E framework",done:false,file:null},{name:"Organisational chart",done:false,file:null},
+  {name:"CV of key personnel",done:false,file:null},{name:"Letters of support",done:false,file:null},
+];
+const DEFAULT_COMPLIANCE=[
+  {name:"CIPC registration current",done:false,file:null},{name:"Tax clearance certificate",done:false,file:null},
+  {name:"Section 18A status active",done:false,file:null},{name:"Latest audited financial statements",done:false,file:null},
+  {name:"SARS good standing letter",done:false,file:null},{name:"Board resolution authorising application",done:false,file:null},
+  {name:"Organisational profile / annual report",done:false,file:null},
+];
 
-const DEFAULT_DOCS = [{name:"NPO/NPC Registration Certificate",isCompleted:false,link:""},{name:"Section 18A PBO Certificate",isCompleted:true,link:""},{name:"SARS Tax Clearance Certificate",isCompleted:false,link:""},{name:"Audited Financial Statements (3 years)",isCompleted:false,link:""},{name:"Theory of Change Document",isCompleted:false,link:""},{name:"Logical Framework (LogFrame)",isCompleted:false,link:""},{name:"Board Resolution / Authorisation Letter",isCompleted:false,link:""},{name:"Organisation Profile / Brochure",isCompleted:false,link:""}];
-const DEFAULT_COMPLIANCE = [{name:"Quarterly Progress Report",dueDate:"",isCompleted:false},{name:"Mid-Term Evaluation",dueDate:"",isCompleted:false},{name:"Annual Financial Audit",dueDate:"",isCompleted:false},{name:"Final Impact Report",dueDate:"",isCompleted:false}];
-const DEFAULT_TEAM = ["Director","Sipho M.","Naledi K.","Thabo D.","Priya N."];
-
-const SEED_GRANTS = [
-  {id:"g1",grantName:"Labour Law Training Initiative",funderName:"Dept. Employment & Labour",applicationURL:"https://www.labour.gov.za/",description:"Partners with civil society to train vulnerable workers on BCEA, LRA, EEA, UIA, COIDA & OHSA. Targets domestic workers, farm workers, and retrenched employees in townships.",contactName:"Labour Grant Desk",contactEmail:"info@labour.gov.za",contactPhone:"0800 20 13 00",contactLinkedIn:"",amountRequested:"R2,000,000",totalBudget:"R2,500,000",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"Government",categoryTag:"Labour Rights",pillar:"Labour Justice & Inclusion",sectors:["Labour & Legal Services"],partnerType:"Government Dept.",province:"Gauteng",revenueType:"Grant",strategicAlignmentScore:5,loiDeadline:"",fullProposalDeadline:"",internalReviewDeadline:"",followupDate:"2026-03-15",reportingDeadline:"",reapplicationDate:"",assignedLead:"Director",supportTeam:[],dateAssigned:"2026-02-20",projectWeekStart:"2026-02-24",targetWeek:"Week 1 (Immediate)",status:"Researching",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"Workers trained",target:"1000",current:""},{name:"Workshops delivered",target:"100",current:""}],sustainabilityPlan:"",revenueDiversification:"",corporateLinkages:"",reapplicationFlag:false,nextFundingWindow:"",isArchived:false,archiveReason:"",documentChecklist:DEFAULT_DOCS.map(d=>({...d})),documentLinks:[{name:"Application Guidelines",url:""},{name:"Budget Template",url:""}],activities:[{timestamp:"2026-02-20T09:00:00Z",author:"Director",type:"note",content:"#1 priority — government credibility unlocks all CSI funders. Rolling deadline — apply immediately."},{timestamp:"2026-02-22T14:30:00Z",author:"Sipho M.",type:"note",content:"Reviewed eligibility. All boxes checked: NPO Act registered, labour law focus, township delivery."}]},
-  {id:"g2",grantName:"Youth Employment & Civil Society Innovation",funderName:"DG Murray Trust (DGMT)",applicationURL:"https://dgmt.co.za/apply-for-funding/",description:"SA's largest independent funder. Targets 10 inequality trap opportunities including youth employment and civil society capacity. Portal reopened Feb 2, 2026.",contactName:"Applications Team",contactEmail:"applications@dgmt.co.za",contactPhone:"+27 21 670 9840",contactLinkedIn:"linkedin.com/company/dgmt",amountRequested:"R1,500,000",totalBudget:"R2,000,000",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"Private Foundation",categoryTag:"Youth Employment",pillar:"Skills Development & Workforce Acceleration",sectors:["Youth Employability","Labour & Legal Services"],partnerType:"Funder",province:"National",revenueType:"Grant",strategicAlignmentScore:4,loiDeadline:"2026-03-15",fullProposalDeadline:"2026-03-31",internalReviewDeadline:"2026-03-08",followupDate:"2026-03-16",reportingDeadline:"",reapplicationDate:"",assignedLead:"Naledi K.",supportTeam:["Sipho M."],dateAssigned:"2026-02-10",projectWeekStart:"2026-02-24",targetWeek:"Week 2",status:"Draft In Progress",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"Candidate attorneys placed",target:"20",current:""},{name:"Permanent employment rate",target:"40%",current:""}],sustainabilityPlan:"",revenueDiversification:"SETA accreditation as secondary funding stream post-Year 2",corporateLinkages:"",reapplicationFlag:false,nextFundingWindow:"",isArchived:false,archiveReason:"",documentChecklist:DEFAULT_DOCS.map(d=>({...d})),documentLinks:[{name:"Concept Note Draft v1",url:""},{name:"DGMT Guidelines 2026",url:""}],activities:[{timestamp:"2026-02-10T08:00:00Z",author:"Director",type:"note",content:"Portal reopened Feb 2, 2026. Apply before end of March. Lead with candidate attorney development: 20/year, 40% permanent = 8 legal jobs annually."},{timestamp:"2026-02-23T16:00:00Z",author:"Naledi K.",type:"note",content:"Concept note first draft complete. Pending Director review. Internal deadline March 8."}]},
-  {id:"g3",grantName:"Social Justice Core Grant",funderName:"RAITH Foundation",applicationURL:"https://raith.org.za/apply/",description:"Regular core grants for NPOs doing systemic social change. Funds work holding power accountable where it affects the marginalised and vulnerable.",contactName:"Grants Team",contactEmail:"grants@raith.org.za",contactPhone:"",contactLinkedIn:"",amountRequested:"R800,000",totalBudget:"R1,200,000",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"Private Foundation",categoryTag:"Social Justice",pillar:"Labour Justice & Inclusion",sectors:["Labour & Legal Services"],partnerType:"Funder",province:"National",revenueType:"Grant",strategicAlignmentScore:5,loiDeadline:"",fullProposalDeadline:"2026-04-30",internalReviewDeadline:"2026-04-15",followupDate:"2026-05-15",reportingDeadline:"",reapplicationDate:"",assignedLead:"Thabo D.",supportTeam:[],dateAssigned:"2026-02-15",projectWeekStart:"2026-03-01",targetWeek:"Week 3",status:"Researching",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"CCMA cases represented",target:"150",current:""},{name:"Successful outcomes",target:"70%",current:""}],sustainabilityPlan:"",revenueDiversification:"",corporateLinkages:"Legal Resources Centre partnership",reapplicationFlag:false,nextFundingWindow:"",isArchived:false,archiveReason:"",documentChecklist:DEFAULT_DOCS.map(d=>({...d})),documentLinks:[],activities:[{timestamp:"2026-02-15T10:00:00Z",author:"Thabo D.",type:"note",content:"RAITH criteria are verbatim match to RGN mandate. Use RAITH language — accountability, not charity."}]},
-  {id:"g4",grantName:"Access to Justice — Expression of Interest",funderName:"Legal Empowerment Fund",applicationURL:"https://legalempowermentfund.org/apply/",description:"$100M programme awarding 2-year UNRESTRICTED core funding to grassroots legal empowerment organisations. Three pillars: Know the Law, Use the Law, Shape the Law.",contactName:"Applications",contactEmail:"applications@globalhumanrights.org",contactPhone:"",contactLinkedIn:"legalempowermentfund.org",amountRequested:"R750,000",totalBudget:"R750,000",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"International Foundation",categoryTag:"Legal Empowerment",pillar:"Labour Justice & Inclusion",sectors:["Labour & Legal Services"],partnerType:"International Body",province:"National",revenueType:"International Aid",strategicAlignmentScore:5,loiDeadline:"2026-03-07",fullProposalDeadline:"",internalReviewDeadline:"2026-03-04",followupDate:"2026-04-01",reportingDeadline:"",reapplicationDate:"",assignedLead:"Sipho M.",supportTeam:["Director"],dateAssigned:"2026-02-20",projectWeekStart:"2026-02-23",targetWeek:"Week 1 (Immediate)",status:"Draft In Progress",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"Rights awareness sessions",target:"100",current:""},{name:"CCMA referrals supported",target:"500",current:""}],sustainabilityPlan:"Unrestricted 2-year core funding covers operational costs — use period to diversify income",revenueDiversification:"",corporateLinkages:"",reapplicationFlag:true,nextFundingWindow:"2028-01-01",isArchived:false,archiveReason:"",documentChecklist:[{name:"Expression of Interest (1-2 pages)",isCompleted:false,link:""},{name:"Three-Pillar Framing",isCompleted:true,link:""},{name:"Annual Budget Evidence",isCompleted:false,link:""},{name:"Organisational Profile",isCompleted:true,link:""}],documentLinks:[{name:"EOI Draft v1",url:""},{name:"LEF Guidelines",url:""}],activities:[{timestamp:"2026-02-20T09:30:00Z",author:"Sipho M.",type:"note",content:"PERFECT MATCH: unrestricted 2-year core funding covers salaries and overheads. EOI due urgently."},{timestamp:"2026-02-24T08:00:00Z",author:"Sipho M.",type:"note",content:"EOI first draft written. 1.5 pages. Internal review deadline March 4."}]},
-  {id:"g5",grantName:"Future of Work(ers) Programme — LOI",funderName:"Ford Foundation",applicationURL:"https://www.fordfoundation.org/work/our-grants/",description:"Funds organisations addressing power imbalances between workers and employers. Active in SA — funds LHR, SERI, and LRC. 6–12 month decision cycle.",contactName:"Grants Portal",contactEmail:"grants@fordfoundation.org",contactPhone:"",contactLinkedIn:"linkedin.com/company/ford-foundation",amountRequested:"R5,000,000",totalBudget:"R5,000,000",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"International Foundation",categoryTag:"Labour Rights",pillar:"Labour Justice & Inclusion",sectors:["Labour & Legal Services","Youth Employability"],partnerType:"International Body",province:"National",revenueType:"International Aid",strategicAlignmentScore:4,loiDeadline:"2026-04-30",fullProposalDeadline:"",internalReviewDeadline:"2026-04-20",followupDate:"2026-05-30",reportingDeadline:"",reapplicationDate:"",assignedLead:"Director",supportTeam:["Naledi K."],dateAssigned:"2026-02-20",projectWeekStart:"2026-03-24",targetWeek:"Week 4–6",status:"Researching",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"Workers from informal sector served",target:"5000",current:""}],sustainabilityPlan:"Ford funds systemic change — use funding period to build evidence base for policy reform",revenueDiversification:"",corporateLinkages:"",reapplicationFlag:false,nextFundingWindow:"",isArchived:false,archiveReason:"",documentChecklist:[{name:"Theory of Change (required)",isCompleted:false,link:""},{name:"Letter of Inquiry (2 pages)",isCompleted:false,link:""},{name:"Evidence of Systemic Impact",isCompleted:false,link:""},{name:"Audited Financials",isCompleted:false,link:""}],documentLinks:[],activities:[{timestamp:"2026-02-20T10:00:00Z",author:"Director",type:"note",content:"6–12 month cycle: LOI in April = funding early 2027. Frame around 35% case abandonment rate as structural barrier."}]},
-  {id:"g6",grantName:"SETA Skills Development Learnership",funderName:"Services SETA",applicationURL:"https://dynamics365.servicesseta.org.za/special-projects/",description:"Special Projects for accredited NPOs delivering skills programmes. Next window expected November 2026. SETA accreditation required — start 3-6 month process immediately.",contactName:"Special Projects",contactEmail:"specialprojects26@serviceseta.org.za",contactPhone:"",contactLinkedIn:"servicesseta.org.za",amountRequested:"R5,000,000",totalBudget:"R6,000,000",matchRequirementPercent:"",eligibilityStatus:"Pending SETA Accreditation",funderType:"Government SETA",categoryTag:"Skills Training",pillar:"Skills Development & Workforce Acceleration",sectors:["Skills Development (SETA/QCTO)","Youth Employability"],partnerType:"SETA",province:"Gauteng",revenueType:"SETA Levy",strategicAlignmentScore:4,loiDeadline:"",fullProposalDeadline:"2026-11-01",internalReviewDeadline:"",followupDate:"2026-06-01",reportingDeadline:"",reapplicationDate:"",assignedLead:"Thabo D.",supportTeam:[],dateAssigned:"2026-02-20",projectWeekStart:"2026-03-01",targetWeek:"Week 6–8 (Accreditation)",status:"Opportunity Identified",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"Candidate attorneys trained",target:"20",current:""}],sustainabilityPlan:"SETA accreditation makes attorney programme a recurring funded learnership — creates structural income",revenueDiversification:"SETA levy funding as secondary annual income",corporateLinkages:"IDC Enterprise Development for candidate attorney placement",reapplicationFlag:false,nextFundingWindow:"2026-11-01",isArchived:false,archiveReason:"",documentChecklist:[{name:"SETA Skills Provider Accreditation (START NOW)",isCompleted:false,link:""},{name:"Sector Skills Plan Alignment",isCompleted:false,link:""},{name:"Learnership Curriculum (NQF-aligned)",isCompleted:false,link:""}],documentLinks:[],activities:[{timestamp:"2026-02-20T09:00:00Z",author:"Thabo D.",type:"note",content:"CRITICAL: Cannot access SETA funding without accreditation. Starting process now — 3-6 month timeline. Target: accredited by August 2026."}]},
+const SEED=[
+  {id:"g1",grantName:"Labour Law Training Initiative",funderName:"Dept. Employment & Labour",applicationURL:"https://www.labour.gov.za/",description:"Government training initiative for workplace rights education in townships.",contactName:"Grants Office",contactEmail:"grants@labour.gov.za",contactPhone:"+27 12 309 4000",contactRole:"Grants Officer",amountRequested:"R2,000,000",totalBudget:"R2,500,000",matchReq:"",eligibility:"Eligible",funderType:"Government",categoryTag:"Labour Rights",pillar:"Labour Justice & Inclusion",sectors:["Labour & Legal Services","Youth Employability"],province:"Gauteng",revenueType:"Grant",stars:5,loiDeadline:"",fullDeadline:"2026-03-15",internalDeadline:"2026-03-08",followup:"",lead:"Director",support:["Naledi K."],status:"Researching",submissionNum:"",awardAmount:"",awardDate:"",disbursements:[],budget:[],compliance:DEFAULT_COMPLIANCE.map(d=>({...d})),docs:DEFAULT_DOCS.map(d=>({...d})),researchNotes:[],drafts:[],reviewMsgs:[],submission:null,award:null,implPlan:[],isArchived:false,activities:[{ts:"2026-02-01T08:00:00Z",author:"Director",type:"note",content:"Confirmed eligible. Strong alignment with Pillar 1. Start concept note immediately."}]},
+  {id:"g2",grantName:"Youth Employment & Civil Society Innovation",funderName:"DG Murray Trust (DGMT)",applicationURL:"https://dgmt.co.za/",description:"SA's largest independent funder targeting youth employment and civil society capacity.",contactName:"Applications Team",contactEmail:"applications@dgmt.co.za",contactPhone:"+27 21 670 9840",contactRole:"Programme Manager",amountRequested:"R1,500,000",totalBudget:"R2,000,000",matchReq:"",eligibility:"Eligible",funderType:"Private Foundation",categoryTag:"Youth Employment",pillar:"Skills Development & Workforce Acceleration",sectors:["Youth Employability","Labour & Legal Services"],province:"National",revenueType:"Grant",stars:4,loiDeadline:"2026-03-15",fullDeadline:"2026-03-31",internalDeadline:"2026-03-08",followup:"",lead:"Naledi K.",support:["Sipho M."],status:"Draft In Progress",submissionNum:"",awardAmount:"",awardDate:"",disbursements:[],budget:[],compliance:DEFAULT_COMPLIANCE.map(d=>({...d})),docs:DEFAULT_DOCS.map(d=>({...d})),researchNotes:[{id:"rn1",content:"Portal reopened Feb 2, 2026. Apply before end of March. Lead with candidate attorney development.",author:"Director",date:"2026-02-10T08:00:00Z",files:[]}],drafts:[{id:"dv1",name:"Concept Note Draft v1.docx",date:"2026-02-23T16:00:00Z",author:"Naledi K.",notes:"First draft complete. Pending Director review.",sentTo:"",sentDate:"",reviewNotes:"",reviewedBy:"",reviewDate:"",file:{name:"Concept Note Draft v1.docx",size:45000}}],reviewMsgs:[],submission:null,award:null,implPlan:[],isArchived:false,activities:[{ts:"2026-02-23T16:00:00Z",author:"Naledi K.",type:"note",content:"Concept note first draft complete. Internal deadline March 8."}]},
+  {id:"g4",grantName:"Access to Justice — Expression of Interest",funderName:"Legal Empowerment Fund",applicationURL:"https://legalempowermentfund.org/apply/",description:"$100M programme awarding 2-year UNRESTRICTED core funding to grassroots legal empowerment organisations.",contactName:"Applications",contactEmail:"applications@globalhumanrights.org",contactPhone:"",contactRole:"Grants Administrator",amountRequested:"R750,000",totalBudget:"R750,000",matchReq:"",eligibility:"Eligible",funderType:"International Foundation",categoryTag:"Legal Empowerment",pillar:"Labour Justice & Inclusion",sectors:["Labour & Legal Services"],province:"National",revenueType:"International Aid",stars:5,loiDeadline:"2026-03-07",fullDeadline:"",internalDeadline:"2026-03-04",followup:"2026-04-01",lead:"Sipho M.",support:["Director"],status:"Researching",submissionNum:"",awardAmount:"",awardDate:"",disbursements:[],budget:[],compliance:DEFAULT_COMPLIANCE.map(d=>({...d})),docs:[{name:"Expression of Interest (1-2 pages)",done:false,file:null},{name:"Three-Pillar Framing",done:true,file:null},{name:"Annual Budget Evidence",done:false,file:null},{name:"Organisational Profile",done:true,file:null}],researchNotes:[{id:"rn1",content:"PERFECT MATCH: unrestricted 2-year core funding covers salaries and overheads. EOI due urgently. Three pillars: Know the Law, Use the Law, Shape the Law.",author:"Sipho M.",date:"2026-02-20T09:30:00Z",files:[]}],drafts:[],reviewMsgs:[],submission:null,award:null,implPlan:[],isArchived:false,activities:[{ts:"2026-02-20T09:30:00Z",author:"Sipho M.",type:"note",content:"PERFECT MATCH: unrestricted 2-year core funding."},{ts:"2026-02-24T08:00:00Z",author:"Sipho M.",type:"note",content:"EOI first draft written. Internal review deadline March 4."}]},
 ];
 
 function daysUntil(d){if(!d)return null;return Math.ceil((new Date(d)-new Date())/86400000);}
-function urgCls(d){if(d===null)return"neutral";if(d<=0)return"overdue";if(d<=7)return"critical";if(d<=21)return"warning";return"safe";}
+function urgCls(d){if(d===null)return"n";if(d<=0)return"o";if(d<=7)return"c";if(d<=21)return"w";return"s";}
 function fd(d){if(!d)return"—";return new Date(d).toLocaleDateString("en-ZA",{day:"numeric",month:"short",year:"numeric"});}
 function fts(t){return new Date(t).toLocaleString("en-ZA",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"});}
-function uid(){return"g"+Date.now()+Math.random().toString(36).slice(2,7);}
-const US={overdue:{bg:"rgba(180,40,30,0.18)",b:"rgba(180,40,30,0.55)",t:"#ff7060"},critical:{bg:"rgba(180,40,30,0.10)",b:"rgba(180,40,30,0.4)",t:"#ff9070"},warning:{bg:"rgba(200,131,42,0.12)",b:"rgba(200,131,42,0.4)",t:"#e8a84a"},safe:{bg:"rgba(40,160,80,0.08)",b:"rgba(40,160,80,0.3)",t:"#60c880"},neutral:{bg:"rgba(255,255,255,0.04)",b:"rgba(255,255,255,0.1)",t:"#6a7a8a"}};
-
+function uid(){return"x"+Date.now()+Math.random().toString(36).slice(2,6);}
+const UC={o:{bg:"rgba(180,40,30,0.18)",b:"rgba(180,40,30,0.55)",t:"#ff7060"},c:{bg:"rgba(180,40,30,0.10)",b:"rgba(180,40,30,0.4)",t:"#ff9070"},w:{bg:"rgba(200,131,42,0.12)",b:"rgba(200,131,42,0.4)",t:"#e8a84a"},s:{bg:"rgba(40,160,80,0.08)",b:"rgba(40,160,80,0.3)",t:"#60c880"},n:{bg:"rgba(255,255,255,0.04)",b:"rgba(255,255,255,0.1)",t:"#6a7a8a"}};
 const I={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(200,131,42,0.22)",borderRadius:8,padding:"10px 14px",color:"#d0c0a8",fontSize:14,outline:"none",fontFamily:"system-ui,sans-serif",width:"100%",transition:"border-color 0.2s"};
 const L={fontSize:11,color:"#5a6a7a",letterSpacing:2,textTransform:"uppercase",display:"block",marginBottom:6,fontWeight:600};
-const S_style={fontSize:12,color:"#7a6a5a",letterSpacing:3,textTransform:"uppercase",marginBottom:12,paddingBottom:8,borderBottom:"1px solid rgba(200,131,42,0.12)",fontWeight:700};
+const SS={fontSize:12,color:"#7a6a5a",letterSpacing:3,textTransform:"uppercase",marginBottom:12,paddingBottom:8,borderBottom:"1px solid rgba(200,131,42,0.12)",fontWeight:700};
+const CB={background:"linear-gradient(160deg,#0d1825,#0a1220)",border:"1px solid rgba(200,131,42,0.16)",borderRadius:13,padding:"18px 20px",boxShadow:"0 8px 32px rgba(0,0,0,0.4)"};
 
-function StarRating({value=0,onChange,size=16}){
-  return <div style={{display:"flex",gap:3}}>{[1,2,3,4,5].map(n=><span key={n} onClick={()=>onChange&&onChange(n)} style={{fontSize:size,cursor:onChange?"pointer":"default",color:n<=value?"#c8832a":"rgba(200,131,42,0.2)",textShadow:n<=value?"0 0 8px rgba(200,131,42,0.5)":"none",transition:"all 0.15s"}}>★</span>)}</div>;
+
+// ── SMART PARSER ─────────────────────────────────────────────────────────────
+function parseGrantText(raw){
+  const t=raw,tl=t.toLowerCase();
+  const urlM=t.match(/https?:\/\/[^\s"'\)]+|www\.[^\s"'\)]+/i);
+  const applicationURL=urlM?(urlM[0].startsWith("http")?urlM[0]:"https://"+urlM[0]):"";
+  const emailM=t.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
+  const contactEmail=emailM?emailM[0]:"";
+  const phoneM=t.match(/(\+27|0)[0-9\s\-]{8,12}/);
+  const contactPhone=phoneM?phoneM[0].trim():"";
+  const lines=t.split("\n").map(l=>l.trim()).filter(Boolean);
+  let funderName="";
+  for(const line of lines){const c=line.replace(/^[\*\-•#\d\.]+\s*/,"").trim();if(c.length>3&&c.length<120&&/[A-Z]/.test(c)&&!/^(focus|who|apply|website|contact|description|email|phone)/i.test(c)){funderName=c.replace(/\s*\(.*\)\s*$/,"").trim();break;}}
+  const amM=t.match(/R[\s]?[\d,]+(?:\s*[-–]\s*R[\s]?[\d,]+)?(?:\s*(?:million|m|k))?|\$[\d,]+/gi);
+  const amountRequested=amM?amM.slice(0,2).join(" – ").trim():"";
+  function pdate(s){if(!s)return"";let m=s.match(/(\d{4})-(\d{2})-(\d{2})/);if(m)return`${m[1]}-${m[2]}-${m[3]}`;m=s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);if(m)return`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;const mo={january:"01",february:"02",march:"03",april:"04",may:"05",june:"06",july:"07",august:"08",september:"09",october:"10",november:"11",december:"12",jan:"01",feb:"02",mar:"03",apr:"04",jun:"06",jul:"07",aug:"08",sep:"09",oct:"10",nov:"11",dec:"12"};m=s.match(/(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})/i);if(m)return`${m[3]}-${mo[m[2].toLowerCase()]}-${m[1].padStart(2,"0")}`;m=s.match(/(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2}),?\s+(\d{4})/i);if(m)return`${m[3]}-${mo[m[1].toLowerCase()]}-${m[2].padStart(2,"0")}`;return"";}
+  const loiM=t.match(/(?:loi|letter of intent|expression of interest|eoi)[^\n]*?(\d{1,2}[\s\/\-]\w+[\s\/\-]\d{4}|\d{4}-\d{2}-\d{2})/i);
+  const propM=t.match(/(?:full proposal|submission|deadline|due)[^\n]*?(\d{1,2}[\s\/\-]\w+[\s\/\-]\d{4}|\d{4}-\d{2}-\d{2})/i);
+  const loiDeadline=loiM?pdate(loiM[1]):"";
+  const fullDeadline=propM?pdate(propM[1]):"";
+  let pillar="Labour Justice & Inclusion";
+  if(/skill|training|learner|seta|qcto|education|workforce/i.test(tl))pillar="Skills Development & Workforce Acceleration";
+  else if(/enterprise|small business|sme|cooperativ|entrepreneur/i.test(tl))pillar="Enterprise Development & Formalisation";
+  else if(/market access|agri|supply chain|aggregat|value chain/i.test(tl))pillar="Market Access & Aggregation";
+  const smap=[["Labour & Legal Services",/labour|legal|ccma|workers right|lra|bcea|paralegal/i],["Skills Development (SETA/QCTO)",/seta|qcto|nqf|learnership|skills development/i],["Youth Employability",/youth|young people|school leaver|graduate|unemployed youth/i],["Healthcare",/health|clinic|medical|hiv|tb|primary care/i],["Green Economy & Agritech",/green|agri|climate|solar|renewable|environment/i],["Manufacturing",/manufactur|production|factory/i],["Cooperative Development",/cooperativ|co-op/i],["Retail & Township Trade",/retail|township|spaza|informal trade/i]];
+  const sectors=smap.filter(([,re])=>re.test(tl)).map(([s])=>s).slice(0,3);
+  if(sectors.length===0)sectors.push("Labour & Legal Services");
+  let funderType="Private Foundation";
+  if(/department|ministry|government|dept\.|municipality/i.test(tl))funderType="Government";
+  else if(/seta\b/i.test(tl))funderType="Government SETA";
+  else if(/csi|corporate social/i.test(tl))funderType="Corporate CSI";
+  else if(/esd|enterprise.*development/i.test(tl))funderType="Corporate ESD";
+  else if(/usaid|dfid|eu |european|giz|bilateral/i.test(tl))funderType="Bilateral Donor";
+  else if(/dfi|development finance|dbsa|ifc/i.test(tl))funderType="DFI";
+  let revenueType="Grant";
+  if(/csi\b/i.test(tl))revenueType="CSI";
+  else if(/seta|levy/i.test(tl))revenueType="SETA Levy";
+  else if(/international|global|overseas|usaid/i.test(tl))revenueType="International Aid";
+  let categoryTag="Labour Rights";
+  if(/access to justice|legal empowerment|paralegal/i.test(tl))categoryTag="Access to Justice";
+  else if(/youth employ/i.test(tl))categoryTag="Youth Employment";
+  else if(/skill|training/i.test(tl))categoryTag="Skills Training";
+  else if(/civil society|ngo/i.test(tl))categoryTag="Civil Society";
+  else if(/social justice/i.test(tl))categoryTag="Social Justice";
+  let province="National";
+  const provM=[["Gauteng",/gauteng|johannesburg|pretoria|soweto|tshwane/i],["Western Cape",/western cape|cape town/i],["KwaZulu-Natal",/kwazulu|natal|durban/i],["Eastern Cape",/eastern cape|port elizabeth/i],["Limpopo",/limpopo|polokwane/i],["Mpumalanga",/mpumalanga|nelspruit/i]];
+  for(const[p,re]of provM){if(re.test(tl)){province=p;break;}}
+  let stars=3;
+  if(["labour rights","access to justice","legal empowerment","worker","ccma","civil society","grassroots","marginalised"].some(w=>tl.includes(w)))stars++;
+  if(["unrestricted","core funding","township","south africa","npo","ngo"].filter(w=>tl.includes(w)).length>=2)stars++;
+  stars=Math.min(5,Math.max(1,stars));
+  const focM=t.match(/(?:focus areas?)[:\s]+([^\n]+)/i);
+  const whoM=t.match(/(?:who can apply|eligib)[:\s]+([^\n]+)/i);
+  let description="";
+  if(focM)description+=focM[1].trim()+". ";
+  if(whoM)description+="Eligible: "+whoM[1].trim()+".";
+  if(!description&&lines.length>1)description=lines.slice(1,4).join(" ").trim();
+  const eligM=t.match(/(?:who can apply|eligible|eligib[a-z]*)[:\s]+([^\n]+)/i);
+  return{grantName:funderName+" — Grant Opportunity",funderName,applicationURL,description:description.trim()||funderName+" — grant opportunity.",contactEmail,contactPhone,funderType,categoryTag,amountRequested,eligibility:eligM?eligM[1].trim():"Eligible",pillar,sectors,province,revenueType,stars,loiDeadline,fullDeadline,status:"Opportunity Identified"};
 }
 
-function SectorChip({sector}){
-  return <span style={{fontSize:11,padding:"2px 8px",borderRadius:20,background:"rgba(80,100,160,0.12)",border:"1px solid rgba(80,100,160,0.25)",color:"#7090c0",fontWeight:600,letterSpacing:0.5,display:"inline-block"}}>{sector}</span>;
-}
-
-function Card({grant,onClick}){
-  const d=grant.fullProposalDeadline||grant.loiDeadline||grant.internalReviewDeadline||grant.followupDate;
-  const dy=d?daysUntil(d):null;const u=urgCls(dy);
-  const sc=STAGE_COLORS[grant.status]||STAGE_COLORS["Opportunity Identified"];
-  const docsOk=grant.documentChecklist.filter(d=>d.isCompleted).length;
-  const docsTotal=grant.documentChecklist.length;
-  const pc=PILLAR_COLORS[grant.pillar];
-  const borderAccent=dy!==null&&dy<=7?"rgba(200,70,50,0.6)":dy!==null&&dy<=21?"rgba(200,131,42,0.5)":sc.border;
-  const [hov,setHov]=useState(false);
-  return(
-    <div onClick={onClick} onMouseOver={()=>setHov(true)} onMouseOut={()=>setHov(false)} style={{background:`linear-gradient(145deg,${sc.bg},rgba(6,10,18,0.95))`,border:`1px solid ${hov?"#c8832a":borderAccent}`,borderRadius:10,padding:"13px 14px",cursor:"pointer",transition:"all 0.2s",marginBottom:6,boxShadow:"0 4px 16px rgba(0,0,0,0.4)"}}>
-      <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:1,marginBottom:3,textTransform:"uppercase",fontWeight:600}}>{grant.funderName}</div>
-      <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b8",fontWeight:700,lineHeight:1.35,marginBottom:7}}>{grant.grantName}</div>
-      {pc&&<div style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:pc.bg,border:`1px solid ${pc.b}`,color:pc.t,display:"inline-block",marginBottom:6,fontWeight:600}}>{(grant.pillar||"").split("&")[0].trim()}</div>}
-      <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:7}}>{(grant.sectors||[]).slice(0,2).map(s=><SectorChip key={s} sector={s}/>)}{(grant.sectors||[]).length>2&&<span style={{fontSize:10,color:"#3a4a5a"}}>+{(grant.sectors||[]).length-2}</span>}</div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-        {grant.amountRequested&&<span style={{fontFamily:"Georgia,serif",fontSize:13,color:"#c8a060",fontWeight:600}}>{grant.amountRequested}</span>}
-        {grant.strategicAlignmentScore>0&&<StarRating value={grant.strategicAlignmentScore} size={11}/>}
-      </div>
-      {d&&<div style={{background:US[u].bg,border:`1px solid ${US[u].b}`,borderRadius:6,padding:"4px 9px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-        <span style={{fontSize:10,color:"#6a7a8a"}}>{fd(d)}</span>
-        <span style={{fontSize:11,fontWeight:700,color:US[u].t}}>{dy<=0?"OVERDUE":`${dy}d`}</span>
-      </div>}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <span style={{fontSize:10,color:"#3a4a5a"}}>{grant.assignedLead||"Unassigned"}</span>
-        <div style={{display:"flex",alignItems:"center",gap:5}}>
-          <div style={{width:30,height:2,background:"rgba(255,255,255,0.07)",borderRadius:1,overflow:"hidden"}}><div style={{width:`${docsTotal>0?(docsOk/docsTotal)*100:0}%`,height:"100%",background:"#c8832a"}}/></div>
-          <span style={{fontSize:10,color:"#2a3a4a"}}>{docsOk}/{docsTotal}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Detail({grant,team,onUpdate,onClose}){
-  const[note,setNote]=useState("");
-  const[author,setAuthor]=useState(team[0]||"Director");
-  const[tab,setTab]=useState("overview");
-  const[edit,setEdit]=useState(false);
-
-  function addNote(){if(!note.trim())return;onUpdate({...grant,activities:[...grant.activities,{timestamp:new Date().toISOString(),author,type:"note",content:note.trim()}]});setNote("");}
-  function moveStage(dir){const idx=STAGES_ACTIVE.indexOf(grant.status);const next=STAGES_ACTIVE[idx+dir];if(next)onUpdate({...grant,status:next,activities:[...grant.activities,{timestamp:new Date().toISOString(),author,type:"status",content:`Stage moved to: ${next}`}]});}
-  function toggleDoc(i){const dl=[...grant.documentChecklist];dl[i]={...dl[i],isCompleted:!dl[i].isCompleted};onUpdate({...grant,documentChecklist:dl});}
-
-  const sc=STAGE_COLORS[grant.status]||STAGE_COLORS["Opportunity Identified"];
-  const stageGuide=STAGE_GUIDE[grant.status];
-  const deadlines=[{l:"LOI Deadline",d:grant.loiDeadline},{l:"Internal Review",d:grant.internalReviewDeadline},{l:"Full Proposal",d:grant.fullProposalDeadline},{l:"Follow-Up",d:grant.followupDate}].filter(x=>x.d);
-  const docsOk=grant.documentChecklist.filter(d=>d.isCompleted).length;
-  const pc=PILLAR_COLORS[grant.pillar];
-
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",display:"flex",justifyContent:"flex-end",zIndex:40,backdropFilter:"blur(4px)"}} onClick={onClose}>
-      <div style={{background:"linear-gradient(160deg,#080e1a,#0c1525)",borderLeft:"1px solid rgba(200,131,42,0.3)",width:"100%",maxWidth:560,height:"100%",overflowY:"auto",display:"flex",flexDirection:"column",boxShadow:"-40px 0 80px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
-        <div style={{background:`linear-gradient(135deg,${sc.bg},rgba(8,14,26,0.97))`,borderBottom:`1px solid ${sc.border}`,padding:"20px 24px",flexShrink:0}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-            <div style={{flex:1}}>
-              <div style={{fontSize:9,color:"#c8832a",letterSpacing:4,marginBottom:4}}>GRANT OPPORTUNITY</div>
-              <h2 style={{fontFamily:"Georgia,serif",fontSize:20,color:"#f0e8d8",fontWeight:700,margin:"0 0 3px",lineHeight:1.2}}>{grant.grantName}</h2>
-              <div style={{fontSize:13,color:"#5a6a7a",marginBottom:8}}>{grant.funderName}</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-                <span style={{fontSize:11,padding:"3px 9px",borderRadius:20,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`}}>{stageGuide?.icon} {grant.status}</span>
-                {pc&&<span style={{fontSize:11,padding:"3px 9px",borderRadius:20,background:pc.bg,color:pc.t,border:`1px solid ${pc.b}`}}>{(grant.pillar||"").split("&")[0].trim()}</span>}
-                {grant.assignedLead&&<span style={{fontSize:11,padding:"3px 9px",borderRadius:20,background:"rgba(100,100,160,0.15)",color:"#9090d0",border:"1px solid rgba(100,100,160,0.3)"}}>👤 {grant.assignedLead}</span>}
-                {grant.strategicAlignmentScore>0&&<StarRating value={grant.strategicAlignmentScore} size={12}/>}
-              </div>
-            </div>
-            <div style={{display:"flex",gap:7,flexShrink:0,marginLeft:10}}>
-              <button onClick={()=>setEdit(true)} style={{background:"rgba(200,131,42,0.15)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"6px 12px",fontSize:11,cursor:"pointer",letterSpacing:1}}>EDIT</button>
-              <button onClick={onClose} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:7,color:"#6a7a8a",width:32,height:32,cursor:"pointer",fontSize:18,lineHeight:1}}>×</button>
-            </div>
-          </div>
-          {stageGuide&&<div style={{background:"rgba(200,131,42,0.06)",border:"1px solid rgba(200,131,42,0.14)",borderRadius:8,padding:"8px 12px",fontSize:12,color:"#9a8a6a",lineHeight:1.7,marginBottom:10}}>{stageGuide.icon} <strong style={{color:"#c8832a"}}>What to do now:</strong> {stageGuide.tip}</div>}
-          <div style={{display:"flex",alignItems:"center",gap:8,background:"rgba(0,0,0,0.3)",borderRadius:9,padding:"7px 10px",border:"1px solid rgba(255,255,255,0.05)"}}>
-            <button onClick={()=>moveStage(-1)} disabled={STAGES_ACTIVE.indexOf(grant.status)<=0} style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:6,color:"#8a9ab0",padding:"4px 11px",fontSize:11,cursor:"pointer"}}>← Back</button>
-            <div style={{flex:1,textAlign:"center"}}>
-              <div style={{fontSize:10,color:"#2a3a4a",letterSpacing:2,marginBottom:3}}>STAGE {STAGES_ACTIVE.indexOf(grant.status)+1} / {STAGES_ACTIVE.length}</div>
-              <div style={{display:"flex",gap:2,justifyContent:"center"}}>{STAGES_ACTIVE.map((s,i)=><div key={s} style={{width:10,height:2.5,borderRadius:2,background:i<=STAGES_ACTIVE.indexOf(grant.status)?sc.dot:"rgba(255,255,255,0.07)"}}/>)}</div>
-            </div>
-            <button onClick={()=>moveStage(1)} disabled={STAGES_ACTIVE.indexOf(grant.status)>=STAGES_ACTIVE.length-1} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:6,color:"#fff",padding:"4px 11px",fontSize:11,cursor:"pointer",fontWeight:600}}>Advance →</button>
-          </div>
-        </div>
-        <div style={{display:"flex",borderBottom:"1px solid rgba(255,255,255,0.06)",padding:"0 24px",background:"rgba(0,0,0,0.2)",flexShrink:0}}>
-          {[["overview","Overview"],["sector","Sector"],["docs","Documents"],["award","Award"],["activity","Activity"]].map(([id,label])=>(
-            <button key={id} onClick={()=>setTab(id)} style={{padding:"9px 12px",fontSize:12,cursor:"pointer",background:"transparent",border:"none",borderBottom:tab===id?"2px solid #c8832a":"2px solid transparent",color:tab===id?"#c8832a":"#3a4a5a",whiteSpace:"nowrap"}}>{label}</button>
-          ))}
-        </div>
-        <div style={{flex:1,overflowY:"auto",padding:"18px 24px",display:"grid",gap:14,alignContent:"start"}}>
-          {tab==="overview"&&<>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-              {[{l:"REQUESTED",v:grant.amountRequested||"TBD"},{l:"TOTAL BUDGET",v:grant.totalBudget||"TBD"},{l:"MATCH REQ.",v:grant.matchRequirementPercent?grant.matchRequirementPercent+"%":"None"}].map(k=>(
-                <div key={k.l} style={{background:"rgba(200,131,42,0.06)",border:"1px solid rgba(200,131,42,0.18)",borderRadius:9,padding:"10px",textAlign:"center"}}>
-                  <div style={{fontSize:9,color:"#7a6a5a",letterSpacing:2,marginBottom:3}}>{k.l}</div>
-                  <div style={{fontFamily:"Georgia,serif",fontSize:15,fontWeight:700,color:"#e8c88a"}}>{k.v}</div>
-                </div>
-              ))}
-            </div>
-            {deadlines.length>0&&<div>
-              <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>DEADLINES</div>
-              {deadlines.map(d=>{const dy=daysUntil(d.d);const u=US[urgCls(dy)];return(
-                <div key={d.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:u.bg,border:`1px solid ${u.b}`,borderRadius:7,padding:"8px 12px",marginBottom:5}}>
-                  <span style={{fontSize:13,color:"#7a8a9a"}}>{d.l}</span>
-                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                    <span style={{fontSize:12,color:"#5a6a7a"}}>{fd(d.d)}</span>
-                    <span style={{fontSize:12,fontWeight:700,color:u.t}}>{dy<=0?"OVERDUE":`${dy}d`}</span>
-                  </div>
-                </div>
-              );})}
-            </div>}
-            <div>
-              <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>TEAM & PLANNING</div>
-              <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:9,padding:"12px 14px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-                {[["Assigned Lead",grant.assignedLead||"—"],["Date Assigned",grant.dateAssigned?fd(grant.dateAssigned):"—"],["Focus Week Start",grant.projectWeekStart?fd(grant.projectWeekStart):"—"],["Target Timeframe",grant.targetWeek||"—"],["Support Team",(grant.supportTeam||[]).join(", ")||"—"],["Confirmation #",grant.submissionConfirmationNumber||"—"]].map(([l,v])=>(
-                  <div key={l}><div style={{fontSize:10,color:"#3a4a5a",letterSpacing:1,marginBottom:2,textTransform:"uppercase",fontWeight:600}}>{l}</div><div style={{fontSize:13,color:"#c0b0a0"}}>{v}</div></div>
-                ))}
-              </div>
-            </div>
-            {grant.description&&<div><div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>DESCRIPTION</div><p style={{fontSize:13,color:"#8a7a6a",lineHeight:1.85,margin:0}}>{grant.description}</p></div>}
-            <div>
-              <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>CONTACT</div>
-              <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:9,padding:"12px 14px",display:"grid",gap:6}}>
-                {[["Name",grant.contactName],["Email",grant.contactEmail],["Phone",grant.contactPhone]].map(([l,v])=>v?(<div key={l} style={{display:"flex",gap:10,alignItems:"center"}}><span style={{fontSize:10,color:"#3a4a5a",width:40,letterSpacing:1,flexShrink:0,textTransform:"uppercase",fontWeight:600}}>{l}</span><span style={{fontSize:13,color:"#c0b0a0"}}>{v}</span></div>):null)}
-                {grant.applicationURL&&<a href={grant.applicationURL} target="_blank" rel="noreferrer" style={{display:"inline-flex",alignItems:"center",gap:5,fontSize:11,color:"#c8832a",marginTop:3,textDecoration:"none",letterSpacing:1,border:"1px solid rgba(200,131,42,0.3)",padding:"5px 12px",borderRadius:6,alignSelf:"start"}}>↗ OPEN APPLICATION PORTAL</a>}
-              </div>
-            </div>
-          </>}
-          {tab==="sector"&&<>
-            {pc&&<div style={{background:pc.bg,border:`1px solid ${pc.b}`,borderRadius:11,padding:"14px 18px"}}>
-              <div style={{fontSize:9,color:pc.t,letterSpacing:3,marginBottom:3,fontWeight:700}}>STRATEGIC PILLAR</div>
-              <div style={{fontFamily:"Georgia,serif",fontSize:17,color:"#f0e0c0",fontWeight:700}}>{grant.pillar}</div>
-            </div>}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-              {[["Province",grant.province||"—"],["Partner Type",grant.partnerType||"—"],["Revenue Type",grant.revenueType||"—"]].map(([l,v])=>(
-                <div key={l} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:9,padding:"10px 12px"}}>
-                  <div style={{fontSize:10,color:"#3a4a5a",letterSpacing:1,marginBottom:2,fontWeight:600}}>{l}</div>
-                  <div style={{fontSize:13,color:"#c0b0a0"}}>{v}</div>
-                </div>
-              ))}
-            </div>
-            {(grant.sectors||[]).length>0&&<div>
-              <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>SECTORS</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{(grant.sectors||[]).map(s=><SectorChip key={s} sector={s}/>)}</div>
-            </div>}
-            {(grant.sustainabilityPlan||grant.revenueDiversification||grant.corporateLinkages)&&<div>
-              <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>SUSTAINABILITY & PIPELINE</div>
-              <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:9,padding:"12px 14px",display:"grid",gap:9}}>
-                {grant.sustainabilityPlan&&<div><div style={{fontSize:10,color:"#3a4a5a",letterSpacing:1,marginBottom:2,fontWeight:600}}>SUSTAINABILITY PLAN</div><p style={{fontSize:12,color:"#8a7a6a",lineHeight:1.8,margin:0}}>{grant.sustainabilityPlan}</p></div>}
-                {grant.revenueDiversification&&<div><div style={{fontSize:10,color:"#3a4a5a",letterSpacing:1,marginBottom:2,fontWeight:600}}>REVENUE DIVERSIFICATION</div><p style={{fontSize:12,color:"#8a7a6a",lineHeight:1.8,margin:0}}>{grant.revenueDiversification}</p></div>}
-                {grant.corporateLinkages&&<div><div style={{fontSize:10,color:"#3a4a5a",letterSpacing:1,marginBottom:2,fontWeight:600}}>CORPORATE LINKAGES</div><p style={{fontSize:12,color:"#8a7a6a",lineHeight:1.8,margin:0}}>{grant.corporateLinkages}</p></div>}
-              </div>
-            </div>}
-            {grant.reapplicationFlag&&<div style={{background:"rgba(80,100,160,0.08)",border:"1px solid rgba(80,100,160,0.25)",borderRadius:9,padding:"11px 14px"}}>
-              <div style={{fontSize:12,color:"#7090c0",fontWeight:600,marginBottom:3}}>🔁 Marked for Reapplication</div>
-              {grant.nextFundingWindow&&<div style={{fontSize:12,color:"#8a9ab0"}}>Next window: {fd(grant.nextFundingWindow)}</div>}
-            </div>}
-          </>}
-          {tab==="docs"&&<>
-            <div>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:7}}>
-                <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",fontWeight:600}}>DOCUMENT CHECKLIST</div>
-                <span style={{fontSize:12,color:"#c8832a"}}>{docsOk}/{grant.documentChecklist.length} ready</span>
-              </div>
-              <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:9,padding:"12px 14px",display:"grid",gap:8}}>
-                {grant.documentChecklist.map((doc,i)=>(
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:9}}>
-                    <input type="checkbox" checked={doc.isCompleted} onChange={()=>toggleDoc(i)} style={{width:14,height:14,accentColor:"#c8832a",cursor:"pointer",flexShrink:0}}/>
-                    <span style={{fontSize:13,flex:1,color:doc.isCompleted?"#4a6a4a":"#8a7a6a",textDecoration:doc.isCompleted?"line-through":"none"}}>{doc.name}</span>
-                  </div>
-                ))}
-                <div style={{height:3,background:"rgba(255,255,255,0.07)",borderRadius:2,marginTop:3,overflow:"hidden"}}><div style={{width:`${grant.documentChecklist.length>0?(docsOk/grant.documentChecklist.length)*100:0}%`,height:"100%",background:"linear-gradient(90deg,#c8832a,#e8a84a)",transition:"width 0.5s"}}/></div>
-              </div>
-            </div>
-            {grant.complianceItems?.length>0&&<div>
-              <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>COMPLIANCE REPORTING</div>
-              {grant.complianceItems.map((c,i)=>(<div key={i} style={{display:"flex",alignItems:"center",gap:9,background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:7,padding:"8px 12px",marginBottom:5}}><input type="checkbox" checked={c.isCompleted} onChange={()=>{const ci=[...grant.complianceItems];ci[i]={...ci[i],isCompleted:!ci[i].isCompleted};onUpdate({...grant,complianceItems:ci});}} style={{width:14,height:14,accentColor:"#c8832a",cursor:"pointer",flexShrink:0}}/><span style={{fontSize:12,flex:1,color:c.isCompleted?"#4a6a4a":"#8a7a6a",textDecoration:c.isCompleted?"line-through":"none"}}>{c.name}</span>{c.dueDate&&<span style={{fontSize:11,color:"#3a4a5a"}}>{fd(c.dueDate)}</span>}</div>))}
-            </div>}
-          </>}
-          {tab==="award"&&<>
-            {grant.awardAmount?(
-              <div style={{background:"rgba(40,160,80,0.08)",border:"1px solid rgba(40,160,80,0.25)",borderRadius:11,padding:"16px 18px"}}>
-                <div style={{fontSize:9,color:"#40a060",letterSpacing:3,marginBottom:5}}>AWARD CONFIRMED</div>
-                <div style={{fontFamily:"Georgia,serif",fontSize:28,fontWeight:700,color:"#5dc080",marginBottom:3}}>{grant.awardAmount}</div>
-                <div style={{fontSize:13,color:"#4a7a4a"}}>Awarded on {fd(grant.awardDate)}</div>
-              </div>
-            ):(
-              <div style={{background:"rgba(255,255,255,0.03)",border:"1px dashed rgba(255,255,255,0.08)",borderRadius:11,padding:"22px",textAlign:"center"}}>
-                <div style={{fontSize:14,color:"#2a3a4a",marginBottom:5}}>No award recorded yet</div>
-                <div style={{fontSize:12,color:"#1a2a3a"}}>Edit this grant → Award tab to record funding received</div>
-              </div>
-            )}
-            {grant.kpiTargets?.filter(k=>k.name).length>0&&<div>
-              <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:7,fontWeight:600}}>KPI TARGETS</div>
-              {grant.kpiTargets.filter(k=>k.name).map((k,i)=>{const cur=parseFloat(k.current)||0;const tar=parseFloat(k.target)||1;const pct=Math.min((cur/tar)*100,100);return(<div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:8,padding:"11px 13px",marginBottom:7}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:13,color:"#c0b0a0"}}>{k.name}</span><span style={{fontSize:12,color:"#c8a060"}}>{k.current||"—"} / {k.target}</span></div><div style={{height:4,background:"rgba(255,255,255,0.07)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${k.current?pct:0}%`,height:"100%",background:"linear-gradient(90deg,#c8832a,#e8a84a)",transition:"width 0.5s"}}/></div></div>);})}
-            </div>}
-          </>}
-          {tab==="activity"&&<>
-            <div style={{fontSize:10,color:"#4a5a6a",letterSpacing:3,textTransform:"uppercase",marginBottom:10,fontWeight:600}}>ACTIVITY LOG — {grant.activities.length} ENTRIES</div>
-            {grant.activities.length===0&&<div style={{fontSize:13,color:"#1a2a3a",fontStyle:"italic",padding:"20px 0",textAlign:"center"}}>No activity yet. Add the first note below.</div>}
-            {[...grant.activities].reverse().map((a,i)=>(
-              <div key={i} style={{background:a.type==="status"?"rgba(80,100,160,0.07)":"rgba(255,255,255,0.03)",border:`1px solid ${a.type==="status"?"rgba(80,100,160,0.2)":"rgba(255,255,255,0.07)"}`,borderRadius:8,padding:"11px 13px",marginBottom:7}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5,gap:7}}>
-                  <span style={{fontSize:11,fontWeight:700,color:a.type==="status"?"#7090c0":"#c8832a"}}>{a.author}</span>
-                  <span style={{fontSize:10,color:"#2a3a4a"}}>{fts(a.timestamp)}</span>
-                </div>
-                <p style={{fontSize:12,color:"#9a8a7a",lineHeight:1.8,margin:0}}>{a.content}</p>
-              </div>
-            ))}
-          </>}
-        </div>
-        <div style={{flexShrink:0,borderTop:"1px solid rgba(200,131,42,0.18)",padding:"12px 24px",background:"rgba(0,0,0,0.4)"}}>
-          <div style={{display:"flex",gap:7,marginBottom:7,alignItems:"center"}}>
-            <span style={{fontSize:10,color:"#3a4a5a",letterSpacing:2}}>AUTHOR:</span>
-            <select value={author} onChange={e=>setAuthor(e.target.value)} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:6,padding:"4px 9px",color:"#c0b0a0",fontSize:12,outline:"none",cursor:"pointer",fontFamily:"inherit"}}>
-              {team.map(m=><option key={m}>{m}</option>)}
-            </select>
-          </div>
-          <div style={{display:"flex",gap:7}}>
-            <textarea value={note} onChange={e=>setNote(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&e.ctrlKey)addNote();}} placeholder="Add a note… (Ctrl+Enter to save)" style={{...I,flex:1,padding:"9px 12px",fontSize:13,resize:"none",height:62}}/>
-            <button onClick={addNote} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:8,color:"#fff",padding:"0 16px",fontSize:13,cursor:"pointer",fontWeight:700,letterSpacing:1,minWidth:52}}>LOG</button>
-          </div>
-        </div>
-        {edit&&<GrantModal initial={grant} team={team} onSave={g=>{onUpdate(g);setEdit(false);}} onClose={()=>setEdit(false)}/>}
-      </div>
-    </div>
-  );
-}
-
-function parseGrantText(raw) {
-  const t = raw;
-  const tl = t.toLowerCase();
-
-  // ── URL ──────────────────────────────────────────────────────────────────
-  const urlMatch = t.match(/https?:\/\/[^\s"'\)]+|www\.[^\s"'\)]+/i);
-  const applicationURL = urlMatch ? (urlMatch[0].startsWith('http') ? urlMatch[0] : 'https://' + urlMatch[0]) : '';
-
-  // ── EMAIL ─────────────────────────────────────────────────────────────────
-  const emailMatch = t.match(/[\w.+-]+@[\w-]+\.[a-z]{2,}/i);
-  const contactEmail = emailMatch ? emailMatch[0] : '';
-
-  // ── PHONE ─────────────────────────────────────────────────────────────────
-  const phoneMatch = t.match(/(\+27|0)[0-9\s\-]{8,12}/);
-  const contactPhone = phoneMatch ? phoneMatch[0].trim() : '';
-
-  // ── CONTACT NAME ─────────────────────────────────────────────────────────
-  const contactNameMatch = t.match(/contact[:\s]+([A-Z][a-z]+ [A-Z][a-z]+)/i);
-  const contactName = contactNameMatch ? contactNameMatch[1] : '';
-
-  // ── FUNDER NAME ──────────────────────────────────────────────────────────
-  // Try first line, or text in parentheses, or first capitalised phrase
-  const lines = t.split('\n').map(l => l.trim()).filter(Boolean);
-  let funderName = '';
-  for (const line of lines) {
-    const clean = line.replace(/^[\*\-•#\d\.]+\s*/, '').trim();
-    if (clean.length > 3 && clean.length < 120 && /[A-Z]/.test(clean) && !/^(focus|who|apply|website|contact|description|about|note|email|phone)/i.test(clean)) {
-      funderName = clean.replace(/\s*\(.*\)\s*$/, '').trim();
-      break;
+// ── IMPLEMENTATION PLAN PARSER ────────────────────────────────────────────────
+function parseImplPlan(text){
+  const lines=text.split("\n").map(l=>l.trim()).filter(Boolean);
+  const phases=[];let cur=null;
+  for(const line of lines){
+    if(/^(phase|month|week|quarter|stage|period|step)\s*\d+|^[ivx]+\.|^\d+\./i.test(line)){
+      cur={id:uid(),title:line.replace(/^[\d\.\-\*]+\s*/,"").trim(),tasks:[],dueDate:"",status:"Pending",progress:0,notes:"",responsible:""};
+      phases.push(cur);
+    }else if(cur&&line.length>4){
+      const dateM=line.match(/by\s+(\w+\s+\d{4}|\d{4}-\d{2}-\d{2})/i);
+      cur.tasks.push({id:uid(),text:line.replace(/^[\-\*•]\s*/,""),done:false,dueDate:dateM?dateM[1]:"",responsible:""});
     }
   }
-
-  // ── GRANT NAME ───────────────────────────────────────────────────────────
-  const grantNameMatch = t.match(/grant\s+name[:\s]+(.+)/i) || t.match(/opportunity[:\s]+(.+)/i) || t.match(/programme[:\s]+(.+)/i);
-  const grantName = grantNameMatch ? grantNameMatch[1].trim() : (funderName ? funderName + ' — Grant Opportunity' : 'New Grant Opportunity');
-
-  // ── AMOUNT ───────────────────────────────────────────────────────────────
-  const amountMatches = t.match(/R[\s]?[\d,]+(?:\s*[-–]\s*R[\s]?[\d,]+)?(?:\s*(?:million|m|k))?|\$[\d,]+(?:\s*[-–]\s*\$[\d,]+)?(?:\s*000)?/gi);
-  let amountRequested = '';
-  if (amountMatches && amountMatches.length > 0) {
-    amountRequested = amountMatches.slice(0, 2).join(' – ').replace(/\s+/g, ' ').trim();
+  if(phases.length===0){
+    const chunks=[];for(let i=0;i<lines.length;i+=4)chunks.push(lines.slice(i,i+4));
+    chunks.forEach((ch,i)=>phases.push({id:uid(),title:`Phase ${i+1}: ${ch[0]||""}`,tasks:ch.slice(1).map(t=>({id:uid(),text:t,done:false,dueDate:"",responsible:""})),dueDate:"",status:"Pending",progress:0,notes:"",responsible:""}));
   }
-
-  // ── DATES ─────────────────────────────────────────────────────────────────
-  function parseDate(str) {
-    if (!str) return '';
-    // YYYY-MM-DD
-    let m = str.match(/(\d{4})-(\d{2})-(\d{2})/);
-    if (m) return `${m[1]}-${m[2]}-${m[3]}`;
-    // DD/MM/YYYY or DD-MM-YYYY
-    m = str.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-    if (m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-    // "31 March 2026" or "March 31, 2026"
-    const months = {january:'01',february:'02',march:'03',april:'04',may:'05',june:'06',july:'07',august:'08',september:'09',october:'10',november:'11',december:'12',jan:'01',feb:'02',mar:'03',apr:'04',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
-    m = str.match(/(\d{1,2})\s+(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{4})/i);
-    if (m) return `${m[3]}-${months[m[2].toLowerCase()]}-${m[1].padStart(2,'0')}`;
-    m = str.match(/(january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2}),?\s+(\d{4})/i);
-    if (m) return `${m[3]}-${months[m[1].toLowerCase()]}-${m[2].padStart(2,'0')}`;
-    return '';
-  }
-  const loiMatch = t.match(/(?:loi|letter of intent|expression of interest|eoi)[^\n]*?(\d{1,2}[\s\/\-]\w+[\s\/\-]\d{4}|\d{4}-\d{2}-\d{2})/i);
-  const proposalMatch = t.match(/(?:full proposal|submission|deadline|due)[^\n]*?(\d{1,2}[\s\/\-]\w+[\s\/\-]\d{4}|\d{4}-\d{2}-\d{2})/i);
-  const loiDeadline = loiMatch ? parseDate(loiMatch[1]) : '';
-  const fullProposalDeadline = proposalMatch ? parseDate(proposalMatch[1]) : '';
-
-  // ── PILLAR ─────────────────────────────────────────────────────────────────
-  let pillar = 'Labour Justice & Inclusion';
-  if (/skill|training|learner|seta|qcto|nvq|nqf|education|workforce|employment|youth employ/i.test(tl)) pillar = 'Skills Development & Workforce Acceleration';
-  else if (/enterprise|small business|sme|cooperativ|formalisa|informal economy|entrepreneur/i.test(tl)) pillar = 'Enterprise Development & Formalisation';
-  else if (/market access|agri|supply chain|aggregat|value chain|export/i.test(tl)) pillar = 'Market Access & Aggregation';
-  else if (/labour|legal|worker|ccma|lra|bcea|justice|rights|access to justice|union/i.test(tl)) pillar = 'Labour Justice & Inclusion';
-
-  // ── SECTORS ───────────────────────────────────────────────────────────────
-  const sectorMap = [
-    ['Labour & Legal Services', /labour|legal|ccma|workers right|lra|bcea|paralegal|law clinic/i],
-    ['Skills Development (SETA/QCTO)', /seta|qcto|nqf|learnership|skills development|nvq|accreditat/i],
-    ['Digital & 4IR', /digital|4ir|technolog|software|coding|cyber|ict|data science/i],
-    ['Youth Employability', /youth|young people|school leaver|graduate|unemployed youth/i],
-    ['Healthcare', /health|clinic|medical|hiv|tb|primary care|mental health/i],
-    ['Green Economy & Agritech', /green|agri|climate|solar|renewable|environment|food security/i],
-    ['Manufacturing', /manufactur|production|factory|industrial/i],
-    ['Cooperative Development', /cooperativ|co-op/i],
-    ['Creative Industries', /creative|arts|culture|media|music|film/i],
-    ['Retail & Township Trade', /retail|township|spaza|informal trade|market/i],
-    ['Infrastructure & Innovation Hubs', /infrastructure|hub|innovation centre|incubat/i],
-    ['Funding & Investment Facilitation', /investment|fund|impact invest|blended financ/i],
-  ];
-  const sectors = sectorMap.filter(([,re]) => re.test(tl)).map(([s]) => s).slice(0, 3);
-  if (sectors.length === 0) sectors.push('Labour & Legal Services');
-
-  // ── FUNDER TYPE ───────────────────────────────────────────────────────────
-  let funderType = 'Private Foundation';
-  if (/department|ministry|government|dept\.|municipality|metro|provincial/i.test(tl)) funderType = 'Government';
-  else if (/seta\b/i.test(tl)) funderType = 'Government SETA';
-  else if (/csi|corporate social/i.test(tl)) funderType = 'Corporate CSI';
-  else if (/esd|enterprise.*development/i.test(tl)) funderType = 'Corporate ESD';
-  else if (/foundation|trust|fund\b/i.test(tl)) funderType = 'Private Foundation';
-  else if (/usaid|dfid|eu |european|giz|uk aid|bilateral/i.test(tl)) funderType = 'Bilateral Donor';
-  else if (/dfi|development finance|dbsa|ifc|afd/i.test(tl)) funderType = 'DFI';
-
-  // ── REVENUE TYPE ──────────────────────────────────────────────────────────
-  let revenueType = 'Grant';
-  if (/csi\b/i.test(tl)) revenueType = 'CSI';
-  else if (/seta|levy/i.test(tl)) revenueType = 'SETA Levy';
-  else if (/international|global|overseas|usaid|ford foundation|open society/i.test(tl)) revenueType = 'International Aid';
-  else if (/contract|service provider/i.test(tl)) revenueType = 'Corporate Contract';
-
-  // ── CATEGORY TAG ──────────────────────────────────────────────────────────
-  let categoryTag = 'Labour Rights';
-  if (/access to justice|legal empowerment|paralegal/i.test(tl)) categoryTag = 'Access to Justice';
-  else if (/legal empowerment/i.test(tl)) categoryTag = 'Legal Empowerment';
-  else if (/youth employ|young people|school leaver/i.test(tl)) categoryTag = 'Youth Employment';
-  else if (/skill|training|learner/i.test(tl)) categoryTag = 'Skills Training';
-  else if (/worker education|workers right/i.test(tl)) categoryTag = 'Worker Education';
-  else if (/civil society|ngo|nonprofit/i.test(tl)) categoryTag = 'Civil Society';
-  else if (/social justice|inequalit/i.test(tl)) categoryTag = 'Social Justice';
-  else if (/enterprise|small business/i.test(tl)) categoryTag = 'Enterprise Development';
-  else if (/gender|women|feminis/i.test(tl)) categoryTag = 'Gender Justice';
-
-  // ── PROVINCE ──────────────────────────────────────────────────────────────
-  let province = 'National';
-  const provMap = [['Gauteng',/gauteng|johannesburg|pretoria|soweto|tshwane|ekurhuleni/i],['Western Cape',/western cape|cape town|stellenbosch/i],['KwaZulu-Natal',/kwazulu|natal|durban|pietermaritzburg/i],['Eastern Cape',/eastern cape|port elizabeth|gqeberha/i],['Limpopo',/limpopo|polokwane/i],['Mpumalanga',/mpumalanga|nelspruit/i],['North West',/north west|rustenburg/i],['Free State',/free state|bloemfontein/i],['Northern Cape',/northern cape|kimberley/i]];
-  for (const [p, re] of provMap) { if (re.test(tl)) { province = p; break; } }
-
-  // ── ALIGNMENT SCORE ───────────────────────────────────────────────────────
-  let score = 3;
-  const highAlign = ['labour rights','access to justice','legal empowerment','worker','ccma','lra','civil society','grassroots','marginalised'];
-  const bonusAlign = ['unrestricted','core funding','township','informal','south africa','npo','ngo'];
-  score += highAlign.filter(w => tl.includes(w)).length > 0 ? 1 : 0;
-  score += bonusAlign.filter(w => tl.includes(w)).length >= 2 ? 1 : 0;
-  score = Math.min(5, Math.max(1, score));
-
-  // ── DESCRIPTION ───────────────────────────────────────────────────────────
-  // Pull the most informative lines
-  const focusMatch = t.match(/(?:focus areas?|focus)[:\s]+([^\n]+)/i);
-  const whoMatch = t.match(/(?:who can apply|eligib|for)[:\s]+([^\n]+)/i);
-  const aboutMatch = t.match(/(?:about|overview|programme)[:\s]+([^\n]+)/i);
-  let description = '';
-  if (focusMatch) description += focusMatch[1].trim() + '. ';
-  if (whoMatch) description += 'Eligible applicants: ' + whoMatch[1].trim() + '. ';
-  if (aboutMatch && description.length < 80) description += aboutMatch[1].trim() + '.';
-  if (!description && lines.length > 1) description = lines.slice(1, 4).join(' ').trim();
-
-  // ── ELIGIBILITY ───────────────────────────────────────────────────────────
-  const eligMatch = t.match(/(?:who can apply|eligible|eligib[a-z]*)[:\s]+([^\n]+)/i);
-  const eligibilityStatus = eligMatch ? eligMatch[1].trim() : 'Eligible';
-
-  return {
-    grantName,
-    funderName,
-    applicationURL,
-    description: description.trim() || funderName + ' — grant opportunity for registered NPOs and NGOs.',
-    contactName,
-    contactEmail,
-    contactPhone,
-    funderType,
-    categoryTag,
-    amountRequested,
-    eligibilityStatus,
-    pillar,
-    sectors,
-    province,
-    revenueType,
-    strategicAlignmentScore: score,
-    loiDeadline,
-    fullProposalDeadline,
-    internalReviewDeadline: '',
-    sustainabilityPlan: '',
-    revenueDiversification: '',
-    status: 'Opportunity Identified',
-  };
+  return phases;
 }
 
+// ── SHARED COMPONENTS ─────────────────────────────────────────────────────────
+function Stars({value=0,onChange,size=18}){
+  return(<div style={{display:"flex",gap:3}}>{[1,2,3,4,5].map(n=>(<span key={n} onClick={()=>onChange&&onChange(n)} style={{fontSize:size,cursor:onChange?"pointer":"default",color:n<=value?"#c8832a":"rgba(200,131,42,0.15)",transition:"all 0.15s"}}>★</span>))}</div>);
+}
+
+function UploadBtn({label,onFile,style:xs}){
+  const ref=useRef();
+  return(<><button onClick={()=>ref.current.click()} style={{background:"rgba(200,131,42,0.08)",border:"1px dashed rgba(200,131,42,0.35)",borderRadius:7,color:"#c8832a",padding:"6px 12px",fontSize:11,cursor:"pointer",letterSpacing:1,fontFamily:"inherit",...xs}}>📎 {label||"ATTACH"}</button><input ref={ref} type="file" style={{display:"none"}} onChange={e=>{const f=e.target.files[0];if(f&&onFile)onFile({name:f.name,size:f.size,type:f.type,date:new Date().toISOString()});e.target.value="";}} /></>);
+}
+
+function FTag({file,onRemove}){
+  if(!file)return null;
+  return(<span style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(200,131,42,0.07)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:5,padding:"3px 9px",fontSize:11,color:"#c8a060",maxWidth:200}}>📄 <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{file.name}</span>{onRemove&&<button onClick={onRemove} style={{background:"none",border:"none",color:"#5a3a3a",cursor:"pointer",fontSize:13,padding:"0",lineHeight:1,flexShrink:0}}>×</button>}</span>);
+}
+
+
+// ── AI IMPORT PANEL ───────────────────────────────────────────────────────────
 function AIImportPanel({onImport}){
-  const[mode,setMode]=useState("text");
-  const[text,setText]=useState("");
-  const[image,setImage]=useState(null);
-  const[imgPreview,setImgPreview]=useState(null);
-  const[loading,setLoading]=useState(false);
-  const[status,setStatus]=useState("");
-  const[drag,setDrag]=useState(false);
-  const fileRef=useRef();
-
-  function handleFile(file){
-    const r=new FileReader();
-    r.onload=e=>{setImgPreview(e.target.result);setImage(e.target.result);};
-    r.readAsDataURL(file);
-  }
-
-  function run(){
-    if(mode==="text"){
-      if(!text.trim()){setStatus("⚠️ Please paste some funder text first.");return;}
-      setLoading(true);setStatus("Parsing…");
-      setTimeout(()=>{
-        try{
-          const result=parseGrantText(text);
-          setStatus("✅ Done! "+Object.keys(result).filter(k=>result[k]&&result[k]!=="").length+" fields filled — review then save.");
-          setLoading(false);
-          onImport(result);
-        }catch(e){setStatus("⚠️ Could not parse. Try pasting more structured text.");setLoading(false);}
-      },600);
-    } else {
-      if(!image){setStatus("⚠️ Please upload an image first.");return;}
-      setStatus("⚠️ Image reading requires OCR — please copy text from the image and use Paste Text mode instead.");
-    }
-  }
-
-  return(
-    <div style={{display:"grid",gap:14}}>
-      <div style={{background:"rgba(200,131,42,0.06)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:11,padding:"13px 16px"}}>
-        <div style={{fontSize:12,color:"#c8832a",fontWeight:700,marginBottom:4}}>✦ Smart Import — No API Key Required</div>
-        <div style={{fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>Paste any funder text — website copy, email, WhatsApp message, document — and every field is auto-filled instantly. Works offline, no setup needed.</div>
-      </div>
-      <div style={{display:"flex",gap:0,background:"rgba(0,0,0,0.3)",borderRadius:9,padding:3,border:"1px solid rgba(200,131,42,0.12)"}}>
-        {[["text","📋 Paste Text"],["image","🖼️ Upload Image"]].map(([id,label])=>(
-          <button key={id} onClick={()=>{setMode(id);setStatus("");}} style={{flex:1,padding:"9px 12px",borderRadius:7,fontSize:12,fontWeight:600,cursor:"pointer",border:"none",background:mode===id?"linear-gradient(135deg,rgba(200,131,42,0.22),rgba(200,131,42,0.1))":"transparent",color:mode===id?"#c8832a":"#3a4a5a",letterSpacing:0.5,transition:"all 0.2s",fontFamily:"inherit"}}>
-            {label}
-          </button>
-        ))}
-      </div>
-      {mode==="text"&&(
-        <div>
-          <label style={L}>Paste funder info — website, email, WhatsApp, document</label>
-          <textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"Example — paste anything like this:\n\nDevelopment Bank of Southern Africa (DBSA)\n• Focus Areas: Education & Health (townships and rural areas)\n• Who Can Apply: Registered NPOs, NGOs, and public benefit organizations\n• Application: Unsolicited applications welcome\n• Website: www.dbsa.org/sustainability/csi\n\nThe more text you paste, the better the results."} style={{...I,height:180,resize:"vertical",fontSize:12,lineHeight:1.85,padding:"12px 14px"}}/>
-          <div style={{fontSize:11,color:"#2a3a2a",marginTop:5}}>💡 Tip: paste the full email or website section. Includes name, URL, focus areas, eligibility, amounts, deadlines.</div>
-        </div>
-      )}
-      {mode==="image"&&(
-        <div>
-          <label style={L}>Upload a screenshot or photo</label>
-          <div onClick={()=>fileRef.current.click()} onDragOver={e=>{e.preventDefault();setDrag(true);}} onDragLeave={()=>setDrag(false)} onDrop={e=>{e.preventDefault();setDrag(false);const f=e.dataTransfer.files[0];if(f)handleFile(f);}} style={{border:`2px dashed ${drag?"#c8832a":"rgba(200,131,42,0.22)"}`,borderRadius:11,padding:"22px 16px",textAlign:"center",cursor:"pointer",background:drag?"rgba(200,131,42,0.06)":"rgba(255,255,255,0.02)",transition:"all 0.2s",minHeight:120,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:9}}>
-            {imgPreview?<img src={imgPreview} alt="" style={{maxHeight:130,maxWidth:"100%",borderRadius:7,objectFit:"contain"}}/>:<><div style={{fontSize:30,opacity:0.3}}>📸</div><div style={{fontSize:13,color:"#3a4a5a"}}>Click or drag & drop a screenshot</div></>}
-          </div>
-          <input ref={fileRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>{if(e.target.files[0])handleFile(e.target.files[0]);}}/>
-          {imgPreview&&<button onClick={()=>{setImage(null);setImgPreview(null);}} style={{marginTop:6,background:"transparent",border:"none",color:"#5a3a3a",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>× Remove</button>}
-          <div style={{marginTop:9,background:"rgba(200,131,42,0.05)",border:"1px solid rgba(200,131,42,0.12)",borderRadius:8,padding:"10px 13px",fontSize:12,color:"#7a6a5a",lineHeight:1.75}}>
-            📋 <strong style={{color:"#c8832a"}}>Best workflow for images:</strong> Open the screenshot → select all text → copy → switch to Paste Text tab and paste. This gives the best results.
-          </div>
-        </div>
-      )}
-      <button onClick={run} disabled={loading} style={{width:"100%",padding:"13px",background:loading?"rgba(200,131,42,0.08)":"linear-gradient(135deg,#c8832a,#a06020)",border:loading?"1px solid rgba(200,131,42,0.25)":"none",borderRadius:10,color:loading?"#c8832a":"#fff",fontSize:13,fontWeight:700,cursor:loading?"not-allowed":"pointer",letterSpacing:2,boxShadow:loading?"none":"0 6px 24px rgba(200,131,42,0.4)",transition:"all 0.2s",display:"flex",alignItems:"center",justifyContent:"center",gap:9,fontFamily:"inherit"}}>
-        {loading?<><span style={{display:"inline-block",animation:"aispin 1s linear infinite"}}>⟳</span> Parsing…</>:<>✦ AUTO-FILL ALL FIELDS</>}
-      </button>
-      {status&&<div style={{background:status.startsWith("✅")?"rgba(40,160,80,0.08)":"rgba(200,80,60,0.08)",border:`1px solid ${status.startsWith("✅")?"rgba(40,160,80,0.3)":"rgba(200,80,60,0.3)"}`,borderRadius:8,padding:"10px 14px",fontSize:13,color:status.startsWith("✅")?"#60c880":"#ff9070",textAlign:"center",lineHeight:1.7}}>{status}</div>}
-      <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:9,padding:"12px 16px"}}>
-        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:8}}>WHAT GETS AUTO-DETECTED</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5}}>
-          {["Funder name","Website URL","Email & phone","Grant description","Strategic pillar","Sectors (1–3)","Province","Revenue type","Alignment score ★","LOI & proposal deadlines","Eligibility status","Funder type"].map(f=>(<div key={f} style={{fontSize:12,color:"#3a5a3a",display:"flex",gap:5,alignItems:"center"}}><span style={{color:"#c8832a",fontSize:9}}>◆</span>{f}</div>))}
-        </div>
-      </div>
-      <style>{`@keyframes aispin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
+  const[text,setText]=useState("");const[loading,setLoading]=useState(false);const[status,setStatus]=useState("");
+  function run(){if(!text.trim()){setStatus("⚠️ Paste some funder text first.");return;}setLoading(true);setStatus("Parsing…");
+    setTimeout(()=>{try{const r=parseGrantText(text);setStatus("✅ "+Object.keys(r).filter(k=>r[k]&&r[k]!=="").length+" fields filled — review then save.");setLoading(false);onImport(r);}catch{setStatus("⚠️ Could not parse. Paste more structured text.");setLoading(false);}},500);}
+  return(<div style={{display:"grid",gap:14}}>
+    <div style={{background:"rgba(200,131,42,0.06)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:11,padding:"13px 16px"}}>
+      <div style={{fontSize:13,color:"#c8832a",fontWeight:700,marginBottom:4}}>✦ Smart Import — works offline, no API key</div>
+      <div style={{fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>Paste any funder text — website, email, WhatsApp, document extract — and all fields auto-fill instantly.</div>
     </div>
-  );
+    <div><label style={L}>Paste funder info</label><textarea value={text} onChange={e=>setText(e.target.value)} placeholder={"e.g.\n\nDevelopment Bank of Southern Africa (DBSA)\n• Focus Areas: Education & Health (townships)\n• Who Can Apply: Registered NPOs and NGOs\n• Website: www.dbsa.org/sustainability/csi\n\nPaste the full email or website section for best results."} style={{...I,height:180,resize:"vertical",fontSize:12,lineHeight:1.85,padding:"12px 14px"}}/></div>
+    <button onClick={run} disabled={loading||!text.trim()} style={{width:"100%",padding:"13px",background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:10,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:2,boxShadow:"0 6px 24px rgba(200,131,42,0.4)",fontFamily:"inherit"}}>{loading?"⟳ Parsing…":"✦ AUTO-FILL ALL FIELDS"}</button>
+    {status&&<div style={{background:status.startsWith("✅")?"rgba(40,160,80,0.08)":"rgba(200,80,60,0.08)",border:`1px solid ${status.startsWith("✅")?"rgba(40,160,80,0.3)":"rgba(200,80,60,0.3)"}`,borderRadius:8,padding:"10px 14px",fontSize:13,color:status.startsWith("✅")?"#60c880":"#ff9070",textAlign:"center"}}>{status}</div>}
+  </div>);
 }
 
-
+// ── ADD/EDIT MODAL ────────────────────────────────────────────────────────────
 function GrantModal({initial,team,onSave,onClose}){
-  const BLANK={id:"",grantName:"",funderName:"",applicationURL:"",description:"",contactName:"",contactEmail:"",contactPhone:"",contactLinkedIn:"",amountRequested:"",totalBudget:"",matchRequirementPercent:"",eligibilityStatus:"Eligible",funderType:"Government",categoryTag:"Labour Rights",pillar:"Labour Justice & Inclusion",sectors:[],partnerType:"",province:"Gauteng",revenueType:"Grant",strategicAlignmentScore:3,loiDeadline:"",fullProposalDeadline:"",internalReviewDeadline:"",followupDate:"",reportingDeadline:"",reapplicationDate:"",assignedLead:"",supportTeam:[],dateAssigned:new Date().toISOString().slice(0,10),projectWeekStart:"",targetWeek:"",status:"Opportunity Identified",submissionConfirmationNumber:"",awardAmount:"",awardDate:"",disbursements:[],budgetActuals:[],complianceItems:DEFAULT_COMPLIANCE.map(d=>({...d})),impactMetrics:{beneficiaries:"",jobsCreated:"",trainingSessions:"",notes:""},kpiTargets:[{name:"",target:"",current:""}],sustainabilityPlan:"",revenueDiversification:"",corporateLinkages:"",reapplicationFlag:false,nextFundingWindow:"",isArchived:false,archiveReason:"",documentChecklist:DEFAULT_DOCS.map(d=>({...d})),documentLinks:[{name:"",url:""}],activities:[]};
-  const[form,setForm]=useState(initial?{...BLANK,...initial}:{...BLANK,id:uid()});
+  const BLK={id:"",grantName:"",funderName:"",applicationURL:"",description:"",contactName:"",contactEmail:"",contactPhone:"",contactRole:"",amountRequested:"",totalBudget:"",matchReq:"",eligibility:"Eligible",funderType:"Government",categoryTag:"Labour Rights",pillar:"Labour Justice & Inclusion",sectors:[],province:"Gauteng",revenueType:"Grant",stars:3,loiDeadline:"",fullDeadline:"",internalDeadline:"",followup:"",lead:"",support:[],status:"Opportunity Identified",submissionNum:"",awardAmount:"",awardDate:"",disbursements:[],budget:[],compliance:DEFAULT_COMPLIANCE.map(d=>({...d})),docs:DEFAULT_DOCS.map(d=>({...d})),researchNotes:[],drafts:[],reviewMsgs:[],submission:null,award:null,implPlan:[],isArchived:false,activities:[]};
+  const[form,setForm]=useState(initial?{...BLK,...initial}:{...BLK,id:uid()});
   const[tab,setTab]=useState(initial?.id?"basic":"ai");
-  const[flashFields,setFlashFields]=useState([]);
+  const[flash,setFlash]=useState([]);
   const f=(k,v)=>setForm(p=>({...p,[k]:v}));
-  function handleAIImport(parsed){
-    setForm(p=>({...p,...parsed}));
-    const filled=Object.keys(parsed).filter(k=>parsed[k]&&parsed[k]!==""&&!(Array.isArray(parsed[k])&&parsed[k].length===0));
-    setFlashFields(filled);
-    setTimeout(()=>setFlashFields([]),3000);
-    setTab("basic");
+  function handleAI(parsed){setForm(p=>({...p,...parsed}));setFlash(Object.keys(parsed).filter(k=>parsed[k]&&parsed[k]!==""));setTimeout(()=>setFlash([]),3000);setTab("basic");}
+  function autoCalc(deadline){
+    if(!deadline)return;
+    const d=new Date(deadline);const ws=new Date(d);ws.setDate(d.getDate()-d.getDay()+1);
+    const days=daysUntil(deadline);
+    f("focusWeekStart",ws.toISOString().slice(0,10));
+    f("targetWeek",days?`${Math.ceil(days/7)} weeks out — w/c ${ws.toLocaleDateString("en-ZA",{day:"numeric",month:"short"})}`:"");
   }
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:60,overflow:"auto",padding:"20px 16px",backdropFilter:"blur(8px)"}} onClick={onClose}>
-      <div style={{background:"linear-gradient(160deg,#0a1525,#07101c)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:14,width:"100%",maxWidth:680,boxShadow:"0 40px 100px rgba(0,0,0,0.9)",marginTop:12}} onClick={e=>e.stopPropagation()}>
-        <div style={{padding:"18px 24px 0",borderBottom:"1px solid rgba(200,131,42,0.15)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
-            <div>
-              <div style={{fontSize:9,color:"#c8832a",letterSpacing:4,marginBottom:3}}>RGN GRANT MANAGEMENT</div>
-              <h2 style={{fontFamily:"Georgia,serif",fontSize:20,color:"#f0e0c0",fontWeight:700,margin:0}}>{initial?.id?"Edit Grant Record":"New Grant Opportunity"}</h2>
-            </div>
-            <button onClick={onClose} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#5a6a7a",width:34,height:34,cursor:"pointer",fontSize:18,flexShrink:0,lineHeight:1}}>×</button>
-          </div>
-          <div style={{display:"flex",gap:0,overflowX:"auto"}}>
-            {[["ai","✦ AI Import"],["basic","Basic"],["sector","Sector"],["financials","Financials"],["deadlines","Deadlines"],["team","Team"],["documents","Docs"]].map(([id,label])=>(
-              <button key={id} onClick={()=>setTab(id)} style={{padding:"9px 14px",fontSize:12,cursor:"pointer",background:"transparent",border:"none",borderBottom:tab===id?"2px solid #c8832a":"2px solid transparent",color:tab===id?"#c8832a":"#3a4a5a",whiteSpace:"nowrap",fontFamily:"inherit"}}>{label}</button>
-            ))}
-          </div>
+  function dlICS(){
+    const d=form.fullDeadline||form.loiDeadline;if(!d)return;
+    const ics=`BEGIN:VCALENDAR\nVERSION:2.0\nBEGIN:VEVENT\nDTSTART:${d.replace(/-/g,"")}T090000Z\nDTEND:${d.replace(/-/g,"")}T100000Z\nSUMMARY:${form.grantName||"Grant Deadline"} — ${form.funderName||""}\nDESCRIPTION:RGN CRM Deadline Reminder\nBEGIN:VALARM\nTRIGGER:-P7D\nACTION:DISPLAY\nDESCRIPTION:1 week reminder\nEND:VALARM\nBEGIN:VALARM\nTRIGGER:-P3D\nACTION:DISPLAY\nDESCRIPTION:3 day reminder\nEND:VALARM\nEND:VEVENT\nEND:VCALENDAR`;
+    const b=new Blob([ics],{type:"text/calendar"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="grant-deadline.ics";a.click();URL.revokeObjectURL(u);
+  }
+  const TABS=[["ai","✦ AI Import"],["basic","Basic"],["sector","Sector"],["financials","Financials"],["deadlines","Deadlines"],["team","Team"],["docs","Docs"]];
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.88)",display:"flex",alignItems:"flex-start",justifyContent:"center",zIndex:60,overflow:"auto",padding:"20px 16px",backdropFilter:"blur(8px)"}}>
+    <div style={{background:"linear-gradient(160deg,#0a1525,#07101c)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:14,width:"100%",maxWidth:720,boxShadow:"0 40px 100px rgba(0,0,0,0.9)",marginTop:12}} onClick={e=>e.stopPropagation()}>
+      <div style={{padding:"18px 24px 0",borderBottom:"1px solid rgba(200,131,42,0.15)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14}}>
+          <div><div style={{fontSize:9,color:"#c8832a",letterSpacing:4,marginBottom:3}}>RGN GRANT MANAGEMENT</div><h2 style={{fontFamily:"Georgia,serif",fontSize:20,color:"#f0e0c0",fontWeight:700,margin:0}}>{initial?.id?"Edit Grant Record":"New Grant Opportunity"}</h2></div>
+          <button onClick={onClose} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#5a6a7a",width:34,height:34,cursor:"pointer",fontSize:18,flexShrink:0,lineHeight:1}}>×</button>
         </div>
-        <div style={{padding:"18px 24px",maxHeight:"55vh",overflowY:"auto"}}>
-          {flashFields.length>0&&tab!=="ai"&&<div style={{background:"rgba(200,131,42,0.07)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:9,padding:"9px 14px",fontSize:12,color:"#c8a060",display:"flex",alignItems:"center",gap:8,marginBottom:12}}><span style={{fontSize:15}}>✦</span> AI filled {flashFields.length} fields — review and adjust if needed.</div>}
-          {tab==="ai"&&<AIImportPanel onImport={handleAIImport}/>}
-          {tab==="basic"&&<div style={{display:"grid",gap:14}}>
-            <div style={S_style}>Basic Details</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div style={{gridColumn:"span 2"}}><label style={L}>Grant / Opportunity Name *</label><input style={I} value={form.grantName} onChange={e=>f("grantName",e.target.value)}/></div>
-              <div><label style={L}>Funder Name *</label><input style={I} value={form.funderName} onChange={e=>f("funderName",e.target.value)}/></div>
-              <div><label style={L}>Funder Type</label><select style={{...I,cursor:"pointer"}} value={form.funderType} onChange={e=>f("funderType",e.target.value)}>{FUNDER_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
-              <div style={{gridColumn:"span 2"}}><label style={L}>Application URL</label><input style={I} value={form.applicationURL} onChange={e=>f("applicationURL",e.target.value)} placeholder="https://..."/></div>
-              <div><label style={L}>Category Tag</label><select style={{...I,cursor:"pointer"}} value={form.categoryTag} onChange={e=>f("categoryTag",e.target.value)}>{CATEGORY_TAGS.map(t=><option key={t}>{t}</option>)}</select></div>
-              <div><label style={L}>Eligibility Status</label><input style={I} value={form.eligibilityStatus} onChange={e=>f("eligibilityStatus",e.target.value)}/></div>
-              <div style={{gridColumn:"span 2"}}><label style={L}>Description</label><textarea style={{...I,resize:"vertical",height:80}} value={form.description} onChange={e=>f("description",e.target.value)}/></div>
-              {[["Contact Name","contactName"],["Email","contactEmail"],["Phone","contactPhone"]].map(([l,k])=>(
-                <div key={k}><label style={L}>{l}</label><input style={I} value={form[k]} onChange={e=>f(k,e.target.value)}/></div>
-              ))}
+        <div style={{display:"flex",gap:0,overflowX:"auto"}}>{TABS.map(([id,label])=>(<button key={id} onClick={()=>setTab(id)} style={{padding:"9px 14px",fontSize:12,cursor:"pointer",background:"transparent",border:"none",borderBottom:tab===id?"2px solid #c8832a":"2px solid transparent",color:tab===id?"#c8832a":"#3a4a5a",whiteSpace:"nowrap",fontFamily:"inherit"}}>{label}</button>))}</div>
+      </div>
+      <div style={{padding:"18px 24px",maxHeight:"60vh",overflowY:"auto"}}>
+        {flash.length>0&&tab!=="ai"&&<div style={{background:"rgba(200,131,42,0.07)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:9,padding:"9px 14px",fontSize:12,color:"#c8a060",marginBottom:12}}>✦ AI filled {flash.length} fields — review and adjust if needed.</div>}
+        {tab==="ai"&&<AIImportPanel onImport={handleAI}/>}
+        {tab==="basic"&&<div style={{display:"grid",gap:14}}>
+          <div style={SS}>Basic Details</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{gridColumn:"span 2"}}><label style={L}>Grant / Opportunity Name *</label><input style={I} value={form.grantName} onChange={e=>f("grantName",e.target.value)} placeholder="e.g. Legal Empowerment Fund — EOI"/></div>
+            <div><label style={L}>Funder Name *</label><input style={I} value={form.funderName} onChange={e=>f("funderName",e.target.value)}/></div>
+            <div><label style={L}>Funder Type</label><select style={{...I,cursor:"pointer"}} value={form.funderType} onChange={e=>f("funderType",e.target.value)}>{FUNDER_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div style={{gridColumn:"span 2"}}><label style={L}>Application URL</label><input style={I} value={form.applicationURL} onChange={e=>f("applicationURL",e.target.value)} placeholder="https://..."/></div>
+            <div><label style={L}>Category Tag</label><select style={{...I,cursor:"pointer"}} value={form.categoryTag} onChange={e=>f("categoryTag",e.target.value)}>{CATEGORY_TAGS.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div><label style={L}>Eligibility Status</label><input style={I} value={form.eligibility} onChange={e=>f("eligibility",e.target.value)}/></div>
+            <div style={{gridColumn:"span 2"}}><label style={L}>Description</label><textarea style={{...I,resize:"vertical",height:80}} value={form.description} onChange={e=>f("description",e.target.value)}/></div>
+            <div><label style={L}>Contact Name</label><input style={I} value={form.contactName} onChange={e=>f("contactName",e.target.value)}/></div>
+            <div><label style={L}>Contact Title / Role</label><input style={I} value={form.contactRole||""} onChange={e=>f("contactRole",e.target.value)} placeholder="e.g. Senior Grants Officer"/></div>
+            <div><label style={L}>Email</label><input style={I} value={form.contactEmail} onChange={e=>f("contactEmail",e.target.value)}/></div>
+            <div><label style={L}>Phone</label><input style={I} value={form.contactPhone} onChange={e=>f("contactPhone",e.target.value)}/></div>
+          </div>
+        </div>}
+        {tab==="sector"&&<div style={{display:"grid",gap:14}}>
+          <div style={SS}>Sector & Classification</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div style={{gridColumn:"span 2"}}><label style={L}>Strategic Pillar</label><select style={{...I,cursor:"pointer"}} value={form.pillar} onChange={e=>f("pillar",e.target.value)}>{PILLARS.map(p=><option key={p}>{p}</option>)}</select></div>
+            <div><label style={L}>Province</label><select style={{...I,cursor:"pointer"}} value={form.province} onChange={e=>f("province",e.target.value)}>{PROVINCES.map(p=><option key={p}>{p}</option>)}</select></div>
+            <div><label style={L}>Revenue Type</label><select style={{...I,cursor:"pointer"}} value={form.revenueType} onChange={e=>f("revenueType",e.target.value)}>{REVENUE_TYPES.map(r=><option key={r}>{r}</option>)}</select></div>
+            <div style={{gridColumn:"span 2"}}><label style={L}>Strategic Alignment (1–5)</label><Stars value={form.stars} onChange={v=>f("stars",v)} size={24}/></div>
+          </div>
+          <div><label style={L}>Sectors (select all that apply)</label><div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:4}}>{SECTORS.map(s=>{const sel=(form.sectors||[]).includes(s);return(<button key={s} onClick={()=>{const c=form.sectors||[];f("sectors",sel?c.filter(x=>x!==s):[...c,s]);}} style={{padding:"5px 11px",borderRadius:20,fontSize:12,cursor:"pointer",background:sel?"rgba(80,100,160,0.2)":"rgba(255,255,255,0.04)",border:sel?"1px solid rgba(80,100,160,0.5)":"1px solid rgba(255,255,255,0.08)",color:sel?"#8ab0e0":"#4a5a6a"}}>{s}</button>);})}</div></div>
+        </div>}
+        {tab==="financials"&&<div style={{display:"grid",gap:12}}>
+          <div style={SS}>Funding Details</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+            {[["Amount Requested","amountRequested"],["Total Project Budget","totalBudget"],["Match Req. (%)","matchReq"]].map(([label,key])=>(<div key={key}><label style={L}>{label}</label><input style={I} value={form[key]} onChange={e=>f(key,e.target.value)}/></div>))}
+          </div>
+        </div>}
+        {tab==="deadlines"&&<div style={{display:"grid",gap:12}}>
+          <div style={SS}>Key Dates</div>
+          {[["LOI Deadline","loiDeadline"],["Full Proposal Deadline","fullDeadline"],["Internal Review Deadline","internalDeadline"],["Follow-Up Date","followup"]].map(([label,key])=>(
+            <div key={key} style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"end"}}>
+              <div><label style={L}>{label}</label><input type="date" style={I} value={form[key]||""} onChange={e=>{f(key,e.target.value);if(key==="fullDeadline"||key==="loiDeadline")autoCalc(e.target.value);}}/></div>
+              {form[key]&&<div style={{paddingBottom:10,fontSize:12,color:"#7a8a9a"}}>{fd(form[key])} {daysUntil(form[key])!==null&&<span style={{color:daysUntil(form[key])<=7?"#ff9070":"#60c880",fontWeight:700}}>{daysUntil(form[key])}d</span>}</div>}
             </div>
-          </div>}
-          {tab==="sector"&&<div style={{display:"grid",gap:14}}>
-            <div style={S_style}>Multi-Sector Classification</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div><label style={L}>Strategic Pillar</label><select style={{...I,cursor:"pointer"}} value={form.pillar} onChange={e=>f("pillar",e.target.value)}><option value="">Select pillar…</option>{PILLARS.map(p=><option key={p}>{p}</option>)}</select></div>
-              <div><label style={L}>Province</label><select style={{...I,cursor:"pointer"}} value={form.province} onChange={e=>f("province",e.target.value)}>{PROVINCES.map(p=><option key={p}>{p}</option>)}</select></div>
-              <div><label style={L}>Partner Type</label><select style={{...I,cursor:"pointer"}} value={form.partnerType} onChange={e=>f("partnerType",e.target.value)}><option value="">Select…</option>{PARTNER_TYPES.map(p=><option key={p}>{p}</option>)}</select></div>
-              <div><label style={L}>Revenue Type</label><select style={{...I,cursor:"pointer"}} value={form.revenueType} onChange={e=>f("revenueType",e.target.value)}>{REVENUE_TYPES.map(r=><option key={r}>{r}</option>)}</select></div>
-              <div><label style={L}>Strategic Alignment (1–5)</label><StarRating value={form.strategicAlignmentScore} onChange={v=>f("strategicAlignmentScore",v)} size={22}/></div>
+          ))}
+          {form.targetWeek&&<div style={{background:"rgba(200,131,42,0.05)",border:"1px solid rgba(200,131,42,0.15)",borderRadius:9,padding:"11px 14px",fontSize:12,color:"#c8a060"}}>✦ Auto-calculated: {form.targetWeek}</div>}
+          <button onClick={dlICS} disabled={!form.fullDeadline&&!form.loiDeadline} style={{background:"rgba(200,131,42,0.08)",border:"1px solid rgba(200,131,42,0.25)",borderRadius:7,color:"#c8832a",padding:"8px 16px",fontSize:12,cursor:"pointer",fontFamily:"inherit",width:"fit-content"}}>📅 DOWNLOAD ICS CALENDAR FILE (with 1-week & 3-day reminders)</button>
+        </div>}
+        {tab==="team"&&<div style={{display:"grid",gap:12}}>
+          <div style={SS}>Team Assignment</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+            <div><label style={L}>Assigned Lead</label><select style={{...I,cursor:"pointer"}} value={form.lead} onChange={e=>f("lead",e.target.value)}><option value="">Unassigned</option>{team.map(m=><option key={m}>{m}</option>)}</select></div>
+            <div><label style={L}>Pipeline Stage</label><select style={{...I,cursor:"pointer"}} value={form.status} onChange={e=>f("status",e.target.value)}>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
+              {form.status&&<div style={{marginTop:6,background:"rgba(200,131,42,0.05)",border:"1px solid rgba(200,131,42,0.15)",borderRadius:7,padding:"8px 12px",fontSize:12,color:"#9a8a6a",lineHeight:1.7}}>{STAGE_GUIDE[form.status]?.icon} {STAGE_GUIDE[form.status]?.tip}</div>}
             </div>
-            <div><label style={L}>Sectors (multi-select)</label>
-              <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:4}}>
-                {SECTORS.map(s=>{const sel=(form.sectors||[]).includes(s);return(<button key={s} onClick={()=>{const cur=form.sectors||[];f("sectors",sel?cur.filter(x=>x!==s):[...cur,s]);}} style={{padding:"5px 11px",borderRadius:20,fontSize:12,cursor:"pointer",background:sel?"rgba(80,100,160,0.2)":"rgba(255,255,255,0.04)",border:sel?"1px solid rgba(80,100,160,0.5)":"1px solid rgba(255,255,255,0.08)",color:sel?"#8ab0e0":"#4a5a6a"}}>{s}</button>);})}
-              </div>
+          </div>
+          <div><label style={L}>Support Team</label><div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:4}}>{team.filter(m=>m!==form.lead).map(m=>{const inT=(form.support||[]).includes(m);return(<button key={m} onClick={()=>{const st=form.support||[];f("support",inT?st.filter(x=>x!==m):[...st,m]);}} style={{padding:"6px 13px",borderRadius:20,fontSize:13,cursor:"pointer",background:inT?"rgba(200,131,42,0.18)":"rgba(255,255,255,0.05)",border:inT?"1px solid rgba(200,131,42,0.45)":"1px solid rgba(255,255,255,0.1)",color:inT?"#c8832a":"#3a4a5a"}}>{m}</button>);})}</div></div>
+        </div>}
+        {tab==="docs"&&<div style={{display:"grid",gap:10}}>
+          <div style={SS}>Document Checklist</div>
+          {form.docs.map((doc,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:9,background:"rgba(255,255,255,0.03)",borderRadius:7,padding:"9px 12px",border:"1px solid rgba(255,255,255,0.06)"}}>
+              <input type="checkbox" checked={doc.done} onChange={()=>{const dl=[...form.docs];dl[i]={...dl[i],done:!dl[i].done};f("docs",dl);}} style={{width:14,height:14,accentColor:"#c8832a",cursor:"pointer",flexShrink:0}}/>
+              <input style={{...I,flex:1,padding:"6px 9px",fontSize:13,textDecoration:doc.done?"line-through":"none",color:doc.done?"#3a4a3a":"#d0c0a8"}} value={doc.name} onChange={e=>{const dl=[...form.docs];dl[i]={...dl[i],name:e.target.value};f("docs",dl);}}/>
+              {doc.file?<FTag file={doc.file} onRemove={()=>{const dl=[...form.docs];dl[i]={...dl[i],file:null};f("docs",dl);}}/>:<UploadBtn label="" onFile={file=>{const dl=[...form.docs];dl[i]={...dl[i],file,done:true};f("docs",dl);}}/>}
+              <button onClick={()=>f("docs",form.docs.filter((_,j)=>j!==i))} style={{background:"none",border:"none",color:"#3a2a2a",cursor:"pointer",fontSize:16,flexShrink:0}}>×</button>
             </div>
-            <div><label style={L}>Sustainability Plan</label><textarea style={{...I,resize:"vertical",height:64}} value={form.sustainabilityPlan} onChange={e=>f("sustainabilityPlan",e.target.value)}/></div>
-            <div><label style={L}>Revenue Diversification Strategy</label><input style={I} value={form.revenueDiversification} onChange={e=>f("revenueDiversification",e.target.value)}/></div>
-          </div>}
-          {tab==="financials"&&<div style={{display:"grid",gap:14}}>
-            <div style={S_style}>Requested Funding</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-              {[["Amount Requested","amountRequested"],["Total Project Budget","totalBudget"],["Match Req. (%)","matchRequirementPercent"]].map(([l,k])=>(<div key={k}><label style={L}>{l}</label><input style={I} value={form[k]} onChange={e=>f(k,e.target.value)}/></div>))}
-            </div>
-            <div style={S_style}>Impact Metrics</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-              {[["Beneficiaries","beneficiaries"],["Jobs Created","jobsCreated"],["Training Sessions","trainingSessions"]].map(([l,k])=>(<div key={k}><label style={L}>{l}</label><input style={I} value={form.impactMetrics[k]} onChange={e=>f("impactMetrics",{...form.impactMetrics,[k]:e.target.value})}/></div>))}
-            </div>
-          </div>}
-          {tab==="deadlines"&&<div style={{display:"grid",gap:12}}>
-            <div style={S_style}>Key Deadlines</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              {[["LOI Deadline","loiDeadline"],["Full Proposal Deadline","fullProposalDeadline"],["Internal Review Deadline","internalReviewDeadline"],["Follow-Up Date","followupDate"],["Reporting Deadline","reportingDeadline"],["Reapplication Date","reapplicationDate"]].map(([l,k])=>{const dy=daysUntil(form[k]);const u=urgCls(dy);return(
-                <div key={k}><label style={L}>{l}</label>
-                  <input style={{...I,borderColor:dy!==null&&dy<=7?"rgba(200,60,40,0.5)":dy!==null&&dy<=21?"rgba(200,131,42,0.5)":"rgba(200,131,42,0.22)"}} type="date" value={form[k]} onChange={e=>f(k,e.target.value)}/>
-                  {form[k]&&<span style={{fontSize:11,color:US[u].t,fontWeight:600,display:"block",marginTop:4}}>{dy<=0?"OVERDUE":`${dy} days remaining`}</span>}
-                </div>
-              );})}
-            </div>
-          </div>}
-          {tab==="team"&&<div style={{display:"grid",gap:12}}>
-            <div style={S_style}>Assignment & Planning</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div><label style={L}>Assigned Lead</label><select style={{...I,cursor:"pointer"}} value={form.assignedLead} onChange={e=>f("assignedLead",e.target.value)}><option value="">Unassigned</option>{team.map(m=><option key={m}>{m}</option>)}</select></div>
-              <div><label style={L}>Date Assigned</label><input type="date" style={I} value={form.dateAssigned} onChange={e=>f("dateAssigned",e.target.value)}/></div>
-              <div><label style={L}>Focus Week (Start Date)</label><input type="date" style={I} value={form.projectWeekStart} onChange={e=>f("projectWeekStart",e.target.value)}/></div>
-              <div><label style={L}>Target Timeframe / Sprint</label><input style={I} value={form.targetWeek} onChange={e=>f("targetWeek",e.target.value)} placeholder="e.g. Week 3 — 10 Mar"/></div>
-              <div><label style={L}>Pipeline Stage</label><select style={{...I,cursor:"pointer"}} value={form.status} onChange={e=>f("status",e.target.value)}>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
-                {form.status&&<div style={{marginTop:6,background:"rgba(200,131,42,0.05)",border:"1px solid rgba(200,131,42,0.15)",borderRadius:7,padding:"8px 12px",fontSize:12,color:"#9a8a6a",lineHeight:1.7}}>{STAGE_GUIDE[form.status]?.icon} {STAGE_GUIDE[form.status]?.tip}</div>}
-              </div>
-              <div><label style={L}>Submission Confirmation #</label><input style={I} value={form.submissionConfirmationNumber} onChange={e=>f("submissionConfirmationNumber",e.target.value)}/></div>
-            </div>
-            <div><label style={L}>Support Team Members</label>
-              <div style={{display:"flex",flexWrap:"wrap",gap:7,marginTop:4}}>
-                {team.filter(m=>m!==form.assignedLead).map(m=>{const inT=(form.supportTeam||[]).includes(m);return(<button key={m} onClick={()=>{const st=form.supportTeam||[];f("supportTeam",inT?st.filter(x=>x!==m):[...st,m]);}} style={{padding:"6px 13px",borderRadius:20,fontSize:13,cursor:"pointer",background:inT?"rgba(200,131,42,0.18)":"rgba(255,255,255,0.05)",border:inT?"1px solid rgba(200,131,42,0.45)":"1px solid rgba(255,255,255,0.1)",color:inT?"#c8832a":"#3a4a5a"}}>{m}</button>);})}
-              </div>
-            </div>
-          </div>}
-          {tab==="documents"&&<div style={{display:"grid",gap:12}}>
-            <div style={S_style}>Document Checklist</div>
-            {form.documentChecklist.map((doc,i)=>(
-              <div key={i} style={{display:"flex",alignItems:"center",gap:9,background:"rgba(255,255,255,0.03)",borderRadius:7,padding:"8px 11px",border:"1px solid rgba(255,255,255,0.06)"}}>
-                <input type="checkbox" checked={doc.isCompleted} onChange={()=>{const dl=[...form.documentChecklist];dl[i]={...dl[i],isCompleted:!dl[i].isCompleted};f("documentChecklist",dl);}} style={{width:14,height:14,accentColor:"#c8832a",cursor:"pointer",flexShrink:0}}/>
-                <input style={{...I,flex:1,padding:"6px 9px",fontSize:13}} value={doc.name} onChange={e=>{const dl=[...form.documentChecklist];dl[i]={...dl[i],name:e.target.value};f("documentChecklist",dl);}}/>
-              </div>
-            ))}
-            <button onClick={()=>f("documentChecklist",[...form.documentChecklist,{name:"New Document",isCompleted:false,link:""}])} style={{background:"transparent",border:"1px dashed rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"8px 14px",fontSize:12,cursor:"pointer",letterSpacing:1}}>+ ADD DOCUMENT</button>
-          </div>}
+          ))}
+          <button onClick={()=>f("docs",[...form.docs,{name:"",done:false,file:null}])} style={{background:"transparent",border:"1px dashed rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"8px 14px",fontSize:12,cursor:"pointer",letterSpacing:1,fontFamily:"inherit"}}>+ ADD DOCUMENT SLOT</button>
+        </div>}
+      </div>
+      <div style={{borderTop:"1px solid rgba(200,131,42,0.2)",padding:"14px 24px",display:"flex",justifyContent:"space-between",gap:10,background:"rgba(0,0,0,0.3)"}}>
+        <button onClick={onClose} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,color:"#5a6a7a",padding:"9px 22px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>
+        <button onClick={()=>{if(!form.grantName||!form.funderName)return;onSave(form);onClose();}} disabled={!form.grantName||!form.funderName} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:9,color:"#fff",padding:"9px 28px",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:2,boxShadow:"0 8px 24px rgba(200,131,42,0.4)",fontFamily:"inherit"}}>
+          {initial?.id?"SAVE CHANGES":"ADD TO PIPELINE"}
+        </button>
+      </div>
+    </div>
+  </div>);
+}
+
+
+// ── FULL-SCREEN GRANT DETAIL ──────────────────────────────────────────────────
+function GrantDetailPage({grant,team,currentUser,notifications,onUpdate,onClose,onArchive,onDelete,onNotify}){
+  const[g,setG]=useState(grant);
+  const[tab,setTab]=useState("overview");
+  const[note,setNote]=useState(""),noteAuthor=useRef(currentUser||team[0]||"Director");
+  const[showEdit,setShowEdit]=useState(false);
+  const[confirmDel,setConfirmDel]=useState(false);
+  const[confirmArch,setConfirmArch]=useState(false);
+  useEffect(()=>{setG(grant);},[grant]);
+  const save=(u)=>{const ng={...g,...u};setG(ng);onUpdate(ng);};
+  const addNote=()=>{if(!note.trim())return;save({activities:[...(g.activities||[]),{ts:new Date().toISOString(),author:noteAuthor.current,type:"note",content:note}]});setNote("");};
+  const sc=SC[g.status]||SC["Opportunity Identified"];
+  const pc=PC[g.pillar];
+  const stIdx=STAGES_ACTIVE.indexOf(g.status);
+  const nextStage=stIdx>=0&&stIdx<STAGES_ACTIVE.length-1?STAGES_ACTIVE[stIdx+1]:null;
+  const prevStage=stIdx>0?STAGES_ACTIVE[stIdx-1]:null;
+  const deadline=g.fullDeadline||g.loiDeadline||g.internalDeadline;
+  const days=daysUntil(deadline);const uc=urgCls(days);
+  const myNotifs=(notifications||[]).filter(n=>n.to===currentUser&&!n.read&&n.grantId===g.id);
+
+  const stageTabs=[
+    {id:"overview",label:"Overview",always:true},
+    {id:"documents",label:"Documents",always:true},
+    {id:"research",label:"Research",show:["Researching","Draft In Progress","Internal Review","Submitted","Under Review","Awarded","Implementation","Reporting","Completed"].includes(g.status)},
+    {id:"drafts",label:"Drafts & Review",show:["Draft In Progress","Internal Review","Submitted","Under Review","Awarded","Implementation","Reporting","Completed"].includes(g.status)},
+    {id:"submission",label:"Submission",show:["Submitted","Under Review","Awarded","Implementation","Reporting","Completed"].includes(g.status)},
+    {id:"award",label:"Award & Finance",show:["Awarded","Implementation","Reporting","Completed"].includes(g.status)},
+    {id:"impl",label:"Implementation",show:["Implementation","Reporting","Completed"].includes(g.status)},
+    {id:"activity",label:"Activity",always:true},
+  ].filter(t=>t.always||t.show);
+
+  return(<div style={{position:"fixed",inset:0,background:"#060c14",zIndex:50,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <style>{`@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+    {/* TOP BAR */}
+    <div style={{flexShrink:0,borderBottom:"1px solid rgba(200,131,42,0.2)",padding:"12px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",background:"linear-gradient(135deg,#07101c,#060c14)",gap:14,flexWrap:"wrap"}}>
+      <div style={{display:"flex",alignItems:"center",gap:14,minWidth:0}}>
+        <button onClick={onClose} style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#5a6a7a",padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit",whiteSpace:"nowrap",flexShrink:0}}>← Back</button>
+        <div style={{minWidth:0}}>
+          <div style={{fontSize:9,color:"#c8832a",letterSpacing:4}}>GRANT OPPORTUNITY</div>
+          <h2 style={{fontFamily:"Georgia,serif",fontSize:20,color:"#f0e0c0",fontWeight:700,margin:0,lineHeight:1.2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"min(600px,50vw)"}}>{g.grantName}</h2>
+          <div style={{fontSize:12,color:"#3a4a5a",marginTop:1}}>{g.funderName}</div>
         </div>
-        <div style={{borderTop:"1px solid rgba(200,131,42,0.2)",padding:"14px 24px",display:"flex",justifyContent:"flex-end",gap:10,background:"rgba(0,0,0,0.3)"}}>
-          <button onClick={onClose} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:9,color:"#5a6a7a",padding:"9px 22px",fontSize:13,cursor:"pointer"}}>Cancel</button>
-          <button onClick={()=>{onSave(form);onClose();}} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:9,color:"#fff",padding:"9px 28px",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:2,boxShadow:"0 8px 24px rgba(200,131,42,0.4)"}}>
-            {initial?.id?"SAVE CHANGES":"ADD TO PIPELINE"}
-          </button>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0,flexWrap:"wrap"}}>
+        {days!==null&&days<=21&&<div style={{background:UC[uc].bg,border:`1px solid ${UC[uc].b}`,borderRadius:7,padding:"5px 12px",fontSize:11,fontWeight:700,color:UC[uc].t}}>{days<=0?"OVERDUE":`${days}d deadline`}</div>}
+        {myNotifs.length>0&&<div style={{background:"rgba(200,131,42,0.15)",border:"1px solid rgba(200,131,42,0.35)",borderRadius:7,padding:"5px 12px",fontSize:11,color:"#c8832a"}}>🔔 {myNotifs.length} new</div>}
+        <button onClick={()=>setShowEdit(true)} style={{background:"linear-gradient(135deg,rgba(200,131,42,0.25),rgba(200,131,42,0.1))",border:"1px solid rgba(200,131,42,0.35)",borderRadius:7,color:"#c8832a",padding:"7px 16px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}}>✏ EDIT</button>
+        <button onClick={()=>setConfirmArch(true)} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#4a5a4a",padding:"7px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>📦 Archive</button>
+        <button onClick={()=>setConfirmDel(true)} style={{background:"transparent",border:"1px solid rgba(180,40,30,0.25)",borderRadius:7,color:"#6a2a2a",padding:"7px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>🗑 Delete</button>
+      </div>
+    </div>
+
+    {/* STAGE PROGRESS */}
+    <div style={{flexShrink:0,padding:"8px 16px",background:"rgba(7,16,28,0.8)",borderBottom:"1px solid rgba(255,255,255,0.04)",display:"flex",alignItems:"center",gap:6,overflowX:"auto"}}>
+      <div style={{display:"flex",flex:1,overflowX:"auto",gap:0}}>
+        {STAGES_ACTIVE.map((s,i)=>{
+          const cur=s===g.status,past=stIdx>i;const sc2=SC[s];
+          return(<div key={s} style={{display:"flex",alignItems:"center",flexShrink:0}}>
+            <button onClick={()=>save({status:s,activities:[...(g.activities||[]),{ts:new Date().toISOString(),author:currentUser||"System",type:"advance",content:`Stage changed to ${s}`}]})} style={{padding:"5px 10px",fontSize:10,cursor:"pointer",background:cur?sc2.bg:"transparent",border:cur?`1px solid ${sc2.border}`:"1px solid transparent",borderRadius:5,color:cur?sc2.text:past?"#2a3a2a":"#1a2a3a",fontWeight:cur?700:400,whiteSpace:"nowrap",letterSpacing:0.5,fontFamily:"inherit",transition:"all 0.15s"}}>{STAGE_GUIDE[s]?.icon} {s}</button>
+            {i<STAGES_ACTIVE.length-1&&<span style={{color:"#1a2a3a",fontSize:10}}>›</span>}
+          </div>);
+        })}
+      </div>
+      <div style={{display:"flex",gap:6,flexShrink:0}}>
+        {prevStage&&<button onClick={()=>save({status:prevStage,activities:[...(g.activities||[]),{ts:new Date().toISOString(),author:currentUser||"System",type:"advance",content:`Moved back to ${prevStage}`}]})} style={{background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:7,color:"#3a4a5a",padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>← Back</button>}
+        {nextStage&&<button onClick={()=>save({status:nextStage,activities:[...(g.activities||[]),{ts:new Date().toISOString(),author:currentUser||"System",type:"advance",content:`Advanced to ${nextStage}`}]})} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:7,color:"#fff",padding:"5px 16px",cursor:"pointer",fontSize:11,fontWeight:700,letterSpacing:1,fontFamily:"inherit",whiteSpace:"nowrap"}}>→ {nextStage}</button>}
+      </div>
+    </div>
+
+    {/* BODY */}
+    <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+      {/* LEFT META PANEL */}
+      <div style={{width:280,flexShrink:0,borderRight:"1px solid rgba(255,255,255,0.05)",overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:12}}>
+        {/* Tags */}
+        <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+          <span style={{fontSize:11,padding:"3px 9px",borderRadius:7,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`,fontWeight:600}}>{STAGE_GUIDE[g.status]?.icon} {g.status}</span>
+          {pc&&<span style={{fontSize:11,padding:"3px 9px",borderRadius:7,background:pc.bg,color:pc.t,border:`1px solid ${pc.b}`}}>{(g.pillar||"").split("&")[0].trim().substring(0,16)}</span>}
+          {g.lead&&<span style={{fontSize:11,padding:"3px 9px",borderRadius:7,background:"rgba(255,255,255,0.04)",color:"#6a8a9a",border:"1px solid rgba(255,255,255,0.08)"}}>👤 {g.lead}</span>}
+          <Stars value={g.stars||0} size={13}/>
+        </div>
+        {/* Stage tip */}
+        {STAGE_GUIDE[g.status]&&<div style={{background:"rgba(200,131,42,0.05)",border:"1px solid rgba(200,131,42,0.12)",borderRadius:9,padding:"10px 13px"}}>
+          <div style={{fontSize:11,color:"#c8832a",fontWeight:700,marginBottom:4}}>📋 What to do now:</div>
+          <div style={{fontSize:12,color:"#7a7a6a",lineHeight:1.75}}>{STAGE_GUIDE[g.status].tip}</div>
+        </div>}
+        {/* Description */}
+        {g.description&&<div style={{fontSize:12,color:"#6a7a5a",lineHeight:1.8}}>{g.description}</div>}
+        {/* Deadlines */}
+        <div>
+          <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:7}}>DEADLINES</div>
+          {[["LOI",g.loiDeadline],["Full Proposal",g.fullDeadline],["Internal Review",g.internalDeadline]].filter(([,d])=>d).map(([l,d])=>{
+            const dy=daysUntil(d);const u=urgCls(dy);
+            return(<div key={l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 10px",background:UC[u].bg,border:`1px solid ${UC[u].b}`,borderRadius:7,marginBottom:5}}>
+              <div><div style={{fontSize:10,color:"#6a7a6a"}}>{l}</div><div style={{fontSize:12,color:"#c0b0a0",fontFamily:"Georgia,serif"}}>{fd(d)}</div></div>
+              <span style={{fontSize:11,fontWeight:700,color:UC[u].t}}>{dy!==null?(dy<=0?"OVERDUE":`${dy}d`):"—"}</span>
+            </div>);
+          })}
+        </div>
+        {/* Financials */}
+        {(g.amountRequested||g.awardAmount)&&<div>
+          <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:7}}>FINANCIALS</div>
+          {[["Requested",g.amountRequested],["Budget",g.totalBudget],["Awarded",g.awardAmount]].filter(([,v])=>v).map(([l,v])=>(<div key={l} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:"1px solid rgba(255,255,255,0.03)"}}><span style={{fontSize:11,color:"#3a4a3a"}}>{l}</span><span style={{fontSize:13,fontFamily:"Georgia,serif",color:"#c8a060",fontWeight:600}}>{v}</span></div>))}
+        </div>}
+        {/* Contact */}
+        {(g.contactName||g.contactEmail)&&<div>
+          <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:7}}>CONTACT</div>
+          {[["NAME",g.contactName],["ROLE",g.contactRole||""],["EMAIL",g.contactEmail],["PHONE",g.contactPhone]].filter(([,v])=>v).map(([l,v])=>(<div key={l} style={{display:"flex",gap:8,marginBottom:3}}><span style={{fontSize:10,color:"#2a3a4a",width:40,flexShrink:0}}>{l}</span>{l==="EMAIL"?<a href={`mailto:${v}`} style={{fontSize:11,color:"#5a80a0"}}>{v}</a>:<span style={{fontSize:12,color:"#7a8a9a"}}>{v}</span>}</div>))}
+          {g.applicationURL&&<a href={g.applicationURL} target="_blank" rel="noopener noreferrer" style={{display:"block",background:"rgba(200,131,42,0.08)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:7,padding:"7px 11px",fontSize:11,color:"#c8a060",textDecoration:"none",marginTop:7,textAlign:"center"}}>↗ OPEN APPLICATION PORTAL</a>}
+        </div>}
+        {/* Quick note */}
+        <div style={{marginTop:"auto"}}>
+          <select defaultValue={currentUser||team[0]} onChange={e=>{noteAuthor.current=e.target.value;}} style={{...I,padding:"6px 10px",fontSize:11,marginBottom:6}}>{team.map(m=><option key={m}>{m}</option>)}</select>
+          <textarea value={note} onChange={e=>setNote(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&e.ctrlKey)addNote();}} placeholder="Add a note… (Ctrl+Enter)" style={{...I,resize:"vertical",height:70,fontSize:12,padding:"9px 12px"}}/>
+          <button onClick={addNote} disabled={!note.trim()} style={{width:"100%",marginTop:7,background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:8,color:"#fff",padding:"9px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:2,fontFamily:"inherit"}}>LOG</button>
+        </div>
+      </div>
+
+      {/* RIGHT CONTENT */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{flexShrink:0,borderBottom:"1px solid rgba(255,255,255,0.05)",padding:"0 16px",display:"flex",gap:0,overflowX:"auto"}}>
+          {stageTabs.map(t=>(<button key={t.id} onClick={()=>setTab(t.id)} style={{padding:"11px 15px",fontSize:12,cursor:"pointer",background:"transparent",border:"none",borderBottom:tab===t.id?"2px solid #c8832a":"2px solid transparent",color:tab===t.id?"#c8832a":"#3a4a5a",whiteSpace:"nowrap",fontFamily:"inherit"}}>{t.label}</button>))}
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:20,animation:"fadeIn 0.2s ease"}}>
+          {tab==="overview"&&<OverviewTab g={g}/>}
+          {tab==="documents"&&<DocsTab g={g} onSave={save}/>}
+          {tab==="research"&&<ResearchTab g={g} team={team} currentUser={currentUser} onSave={save}/>}
+          {tab==="drafts"&&<DraftsTab g={g} team={team} currentUser={currentUser} onSave={save} onNotify={onNotify}/>}
+          {tab==="submission"&&<SubmissionTab g={g} onSave={save}/>}
+          {tab==="award"&&<AwardTab g={g} onSave={save}/>}
+          {tab==="impl"&&<ImplTab g={g} team={team} currentUser={currentUser} onSave={save}/>}
+          {tab==="activity"&&<ActivityTab g={g}/>}
         </div>
       </div>
     </div>
-  );
+
+    {/* MODALS */}
+    {showEdit&&<GrantModal initial={g} team={team} onSave={updated=>save(updated)} onClose={()=>setShowEdit(false)}/>}
+    {confirmArch&&<ConfirmModal title="Archive this grant?" body="It will be hidden from active views but kept in records. Restore any time via 'Show Archived'." onConfirm={()=>{onArchive(g.id);onClose();}} onCancel={()=>setConfirmArch(false)} confirmLabel="Archive" confirmStyle={{background:"rgba(200,131,42,0.15)",border:"1px solid rgba(200,131,42,0.3)",color:"#c8832a"}}/>}
+    {confirmDel&&<ConfirmModal title="Delete this grant permanently?" body={`All data, notes, documents and history for "${g.grantName}" will be permanently removed. This cannot be undone.`} onConfirm={()=>{onDelete(g.id);onClose();}} onCancel={()=>setConfirmDel(false)} confirmLabel="Delete Permanently" confirmStyle={{background:"rgba(180,40,30,0.2)",border:"1px solid rgba(180,40,30,0.4)",color:"#ff8070"}}/>}
+  </div>);
 }
 
-function GrantsTable({grants,onSelect}){
-  return(
-    <div style={{overflowX:"auto"}}>
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr style={{borderBottom:"1px solid rgba(200,131,42,0.2)"}}>
-          {["Grant / Funder","Pillar","Stage","Lead","Requested","Alignment","Deadline","Days","Docs"].map(h=>(<th key={h} style={{textAlign:"left",fontSize:10,color:"#3a5a3a",fontWeight:700,letterSpacing:2,textTransform:"uppercase",padding:"9px 12px"}}>{h}</th>))}
-        </tr></thead>
-        <tbody>{grants.map(g=>{
-          const d=g.fullProposalDeadline||g.loiDeadline||g.internalReviewDeadline||g.followupDate;
-          const dy=d?daysUntil(d):null;const u=urgCls(dy);const sc=STAGE_COLORS[g.status]||STAGE_COLORS["Opportunity Identified"];
-          const docsOk=g.documentChecklist.filter(x=>x.isCompleted).length;const pc=PILLAR_COLORS[g.pillar];
-          return(<tr key={g.id} onClick={()=>onSelect(g)} style={{borderBottom:"1px solid rgba(255,255,255,0.04)",cursor:"pointer"}}>
-            <td style={{padding:"11px 12px"}}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:600,marginBottom:2}}>{g.grantName}</div><div style={{fontSize:12,color:"#3a4a5a"}}>{g.funderName}</div></td>
-            <td style={{padding:"11px 12px"}}>{pc&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:9,background:pc.bg,color:pc.t,border:`1px solid ${pc.b}`,display:"inline-block",fontWeight:600}}>{(g.pillar||"").split("&")[0].trim().substring(0,14)}</span>}</td>
-            <td style={{padding:"11px 12px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:9,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`,whiteSpace:"nowrap"}}>{g.status}</span></td>
-            <td style={{padding:"11px 12px",fontSize:13,color:"#7a8a9a"}}>{g.assignedLead||"—"}</td>
-            <td style={{padding:"11px 12px",fontFamily:"Georgia,serif",fontSize:13,color:"#c8a060"}}>{g.amountRequested||"—"}</td>
-            <td style={{padding:"11px 12px"}}><StarRating value={g.strategicAlignmentScore||0} size={12}/></td>
-            <td style={{padding:"11px 12px",fontSize:12,color:"#4a5a4a"}}>{d?fd(d):"—"}</td>
-            <td style={{padding:"11px 12px"}}>{dy!==null?<span style={{fontSize:12,fontWeight:700,padding:"2px 8px",borderRadius:6,background:US[u].bg,color:US[u].t,border:`1px solid ${US[u].b}`,whiteSpace:"nowrap"}}>{dy<=0?"OVERDUE":`${dy}d`}</span>:<span style={{color:"#141e28"}}>—</span>}</td>
-            <td style={{padding:"11px 12px"}}><div style={{fontSize:12,color:"#2a4a2a",marginBottom:2}}>{docsOk}/{g.documentChecklist.length}</div><div style={{width:36,height:3,background:"rgba(255,255,255,0.07)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${g.documentChecklist.length>0?(docsOk/g.documentChecklist.length)*100:0}%`,height:"100%",background:"#c8832a"}}/></div></td>
-          </tr>);
-        })}</tbody>
-      </table>
-      {grants.length===0&&<div style={{textAlign:"center",padding:50,color:"#1a2a3a",fontSize:14}}>No grants match your filters.</div>}
+function ConfirmModal({title,body,onConfirm,onCancel,confirmLabel,confirmStyle}){
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:80}}>
+    <div style={{background:"#0a1525",border:"1px solid rgba(200,131,42,0.3)",borderRadius:13,padding:28,maxWidth:420,width:"90%"}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700,marginBottom:10}}>{title}</div>
+      <div style={{fontSize:13,color:"#5a6a5a",marginBottom:18,lineHeight:1.8}}>{body}</div>
+      <div style={{display:"flex",gap:9}}>
+        <button onClick={onCancel} style={{flex:1,background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#5a6a7a",padding:"9px",cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>
+        <button onClick={onConfirm} style={{flex:1,padding:"9px",fontWeight:700,cursor:"pointer",borderRadius:7,fontFamily:"inherit",...confirmStyle}}>{confirmLabel}</button>
+      </div>
     </div>
-  );
+  </div>);
 }
 
+
+// ── TAB CONTENT COMPONENTS ────────────────────────────────────────────────────
+function OverviewTab({g}){
+  const pc=PC[g.pillar];
+  return(<div style={{display:"grid",gap:14,maxWidth:900}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+      {[{l:"REQUESTED",v:g.amountRequested||"TBD",c:"#c8a060"},{l:"BUDGET",v:g.totalBudget||"TBD",c:"#c8a060"},{l:"MATCH REQ.",v:g.matchReq?g.matchReq+"%":"None",c:"#7a8a9a"}].map(s=>(<div key={s.l} style={CB}><div style={{fontSize:9,color:"#3a4a3a",letterSpacing:2,marginBottom:6}}>{s.l}</div><div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:s.c}}>{s.v}</div></div>))}
+    </div>
+    <div style={CB}>
+      <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:10}}>TEAM</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        {[["LEAD",g.lead||"—"],["SUPPORT",(g.support||[]).join(", ")||"—"],["STAGE",g.status]].map(([l,v])=>(<div key={l}><div style={{fontSize:9,color:"#2a3a4a",letterSpacing:2,marginBottom:3}}>{l}</div><div style={{fontSize:13,color:"#8a9aaa"}}>{v}</div></div>))}
+      </div>
+    </div>
+    {(g.sectors||[]).length>0&&<div style={CB}><div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:10}}>SECTORS</div><div style={{display:"flex",flexWrap:"wrap",gap:7}}>{g.sectors.map(s=>(<span key={s} style={{fontSize:12,padding:"4px 11px",borderRadius:20,background:"rgba(80,100,160,0.15)",border:"1px solid rgba(80,100,160,0.3)",color:"#7a90d0"}}>{s}</span>))}</div></div>}
+  </div>);
+}
+
+function DocsTab({g,onSave}){
+  return(<div style={{display:"grid",gap:16,maxWidth:800}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>Document Checklist</div>
+    <div style={CB}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700}}>APPLICATION DOCUMENTS</div>
+        <div style={{fontSize:12,color:"#c8a060",fontWeight:600}}>{(g.docs||[]).filter(d=>d.done).length}/{(g.docs||[]).length} ready</div>
+      </div>
+      {(g.docs||[]).map((doc,i)=>(
+        <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:doc.done?"rgba(40,160,80,0.05)":"rgba(255,255,255,0.03)",borderRadius:8,padding:"10px 13px",border:`1px solid ${doc.done?"rgba(40,160,80,0.2)":"rgba(255,255,255,0.07)"}`,marginBottom:7}}>
+          <input type="checkbox" checked={doc.done} onChange={()=>{const dl=[...g.docs];dl[i]={...dl[i],done:!dl[i].done};onSave({docs:dl});}} style={{width:15,height:15,accentColor:"#c8832a",cursor:"pointer",flexShrink:0}}/>
+          <span style={{flex:1,fontSize:13,color:doc.done?"#3a5a3a":"#c0b0a0",textDecoration:doc.done?"line-through":"none"}}>{doc.name||<em style={{color:"#2a3a4a"}}>Unnamed document</em>}</span>
+          {doc.file?<><FTag file={doc.file}/><button onClick={()=>{const dl=[...g.docs];dl[i]={...dl[i],file:null};onSave({docs:dl});}} style={{background:"none",border:"none",color:"#3a2a2a",cursor:"pointer",fontSize:11}}>remove</button></>:<UploadBtn label="Attach" onFile={file=>{const dl=[...g.docs];dl[i]={...dl[i],file,done:true};onSave({docs:dl});}}/>}
+        </div>
+      ))}
+      <button onClick={()=>onSave({docs:[...(g.docs||[]),{name:"",done:false,file:null}]})} style={{marginTop:7,background:"transparent",border:"1px dashed rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"8px 14px",fontSize:12,cursor:"pointer",letterSpacing:1,fontFamily:"inherit",width:"100%"}}>+ ADD DOCUMENT</button>
+    </div>
+    <div style={CB}>
+      <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:12}}>ORGANISATIONAL COMPLIANCE</div>
+      {(g.compliance||[]).map((doc,i)=>(
+        <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+          <input type="checkbox" checked={doc.done} onChange={()=>{const dl=[...g.compliance];dl[i]={...dl[i],done:!dl[i].done};onSave({compliance:dl});}} style={{width:14,height:14,accentColor:"#c8832a",cursor:"pointer",flexShrink:0}}/>
+          <span style={{flex:1,fontSize:13,color:doc.done?"#3a5a3a":"#8a9aaa",textDecoration:doc.done?"line-through":"none"}}>{doc.name}</span>
+          {doc.file?<FTag file={doc.file} onRemove={()=>{const dl=[...g.compliance];dl[i]={...dl[i],file:null};onSave({compliance:dl});}}/>:<UploadBtn label="Upload" onFile={file=>{const dl=[...g.compliance];dl[i]={...dl[i],file,done:true};onSave({compliance:dl});}}/>}
+        </div>
+      ))}
+    </div>
+  </div>);
+}
+
+function ResearchTab({g,team,currentUser,onSave}){
+  const[text,setText]=useState("");const[author,setAuthor]=useState(currentUser||team[0]);
+  function add(){if(!text.trim())return;onSave({researchNotes:[...(g.researchNotes||[]),{id:uid(),content:text,author,date:new Date().toISOString(),files:[]}]});setText("");}
+  return(<div style={{display:"grid",gap:16,maxWidth:800}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>Research Notes & Intelligence</div>
+    <div style={{background:"rgba(200,131,42,0.04)",border:"1px solid rgba(200,131,42,0.12)",borderRadius:11,padding:"12px 16px",fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>📚 <strong style={{color:"#c8832a"}}>Researching stage:</strong> Gather all intelligence before writing. Find past grantees, identify programme officer, download guidelines, note the funder's exact language and priorities.</div>
+    <div style={CB}>
+      <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:10}}>ADD RESEARCH NOTE</div>
+      <select value={author} onChange={e=>setAuthor(e.target.value)} style={{...I,fontSize:12,padding:"7px 10px",marginBottom:9,width:"auto"}}>{team.map(m=><option key={m}>{m}</option>)}</select>
+      <textarea value={text} onChange={e=>setText(e.target.value)} placeholder="Research findings, past grantees, programme officer name, funder priorities, key language to use…" style={{...I,resize:"vertical",height:90,fontSize:12,marginBottom:9}}/>
+      <button onClick={add} disabled={!text.trim()} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:8,color:"#fff",padding:"9px 20px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:2,fontFamily:"inherit"}}>SAVE NOTE</button>
+    </div>
+    {(g.researchNotes||[]).map((rn,i)=>(
+      <div key={rn.id||i} style={CB}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <span style={{fontSize:12,color:"#c8832a",fontWeight:600}}>{rn.author}</span>
+          <div style={{display:"flex",gap:9,alignItems:"center"}}>
+            <span style={{fontSize:11,color:"#2a3a4a"}}>{fts(rn.date)}</span>
+            <button onClick={()=>onSave({researchNotes:(g.researchNotes||[]).filter((_,j)=>j!==i)})} style={{background:"none",border:"none",color:"#3a2a2a",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>remove</button>
+          </div>
+        </div>
+        <div style={{fontSize:13,color:"#8a8a7a",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{rn.content}</div>
+        {(rn.files||[]).length>0&&<div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:7}}>{rn.files.map((f,fi)=><FTag key={fi} file={f} onRemove={()=>{const u=[...(g.researchNotes||[])];u[i]={...u[i],files:u[i].files.filter((_,j)=>j!==fi)};onSave({researchNotes:u});}}/>)}</div>}
+        <div style={{marginTop:9}}><UploadBtn label="Attach Research Document" onFile={file=>{const u=[...(g.researchNotes||[])];u[i]={...u[i],files:[...(u[i].files||[]),file]};onSave({researchNotes:u});}}/></div>
+      </div>
+    ))}
+    {(g.researchNotes||[]).length===0&&<div style={{fontSize:13,color:"#2a3a4a",fontStyle:"italic",textAlign:"center",padding:30}}>No research notes yet. Add your first finding above.</div>}
+  </div>);
+}
+
+function DraftsTab({g,team,currentUser,onSave,onNotify}){
+  const[reviewTarget,setReviewTarget]=useState(team.find(m=>m!==currentUser)||team[0]);
+  const[dnotes,setDnotes]=useState("");
+  function addDraft(file){
+    const dv={id:uid(),name:file.name,date:new Date().toISOString(),author:currentUser||team[0],notes:dnotes,sentTo:"",sentDate:"",reviewNotes:"",reviewedBy:"",reviewDate:"",file};
+    onSave({drafts:[...(g.drafts||[]),dv]});setDnotes("");
+  }
+  function sendForReview(dvId){
+    const updated=(g.drafts||[]).map(dv=>dv.id===dvId?{...dv,sentTo:reviewTarget,sentDate:new Date().toISOString()}:dv);
+    onSave({drafts:updated});
+    onNotify({to:reviewTarget,from:currentUser||team[0],type:"review_request",grantName:g.grantName,grantId:g.id,message:`${currentUser||team[0]} has sent a draft of "${g.grantName}" for your review.`,ts:new Date().toISOString(),read:false});
+  }
+  function submitReview(dvId,notes){
+    const dv=(g.drafts||[]).find(d=>d.id===dvId);
+    const updated=(g.drafts||[]).map(d=>d.id===dvId?{...d,reviewNotes:notes,reviewedBy:currentUser||team[0],reviewDate:new Date().toISOString()}:d);
+    onSave({drafts:updated});
+    if(dv?.author)onNotify({to:dv.author,from:currentUser||team[0],type:"review_complete",grantName:g.grantName,grantId:g.id,message:`${currentUser||team[0]} has reviewed your draft of "${g.grantName}". Click to see feedback.`,ts:new Date().toISOString(),read:false});
+  }
+  return(<div style={{display:"grid",gap:16,maxWidth:800}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>Drafts & Internal Review</div>
+    <div style={{background:"rgba(200,131,42,0.04)",border:"1px solid rgba(200,131,42,0.12)",borderRadius:11,padding:"12px 16px",fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>✍️ Upload your draft, then send it to a colleague for review. They will receive a notification when they log in. Feedback is tracked and sent back automatically.</div>
+    <div style={CB}>
+      <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:10}}>UPLOAD NEW DRAFT</div>
+      <textarea value={dnotes} onChange={e=>setDnotes(e.target.value)} placeholder="Version notes — what was changed, what needs review…" style={{...I,resize:"vertical",height:65,fontSize:12,marginBottom:9}}/>
+      <UploadBtn label="UPLOAD DRAFT DOCUMENT" onFile={file=>addDraft(file)}/>
+    </div>
+    {(g.drafts||[]).map((dv,i)=>(
+      <div key={dv.id||i} style={{...CB,borderColor:dv.reviewNotes?"rgba(40,160,80,0.3)":dv.sentTo?"rgba(200,131,42,0.3)":"rgba(200,131,42,0.16)"}}>
+        <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:10,marginBottom:10}}>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:14,color:"#c0b0a0",fontWeight:600,fontFamily:"Georgia,serif",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{dv.name}</div>
+            <div style={{fontSize:11,color:"#3a4a5a",marginTop:2}}>By {dv.author} · {fts(dv.date)}</div>
+            {dv.notes&&<div style={{fontSize:12,color:"#6a7a5a",marginTop:4,lineHeight:1.6}}>{dv.notes}</div>}
+          </div>
+          <div style={{flexShrink:0}}>
+            {!dv.sentTo&&!dv.reviewNotes&&<div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <select value={reviewTarget} onChange={e=>setReviewTarget(e.target.value)} style={{...I,padding:"4px 8px",fontSize:11,width:"auto"}}>{team.filter(m=>m!==dv.author).map(m=><option key={m}>{m}</option>)}</select>
+              <button onClick={()=>sendForReview(dv.id)} style={{background:"linear-gradient(135deg,rgba(80,100,180,0.3),rgba(80,100,180,0.15))",border:"1px solid rgba(80,100,180,0.4)",borderRadius:7,color:"#8090d0",padding:"5px 12px",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap"}}>📨 Send for Review</button>
+            </div>}
+            {dv.sentTo&&!dv.reviewNotes&&<span style={{fontSize:11,padding:"4px 9px",background:"rgba(200,131,42,0.08)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:6,color:"#c8a060"}}>⏳ Sent to {dv.sentTo}</span>}
+            {dv.reviewNotes&&<span style={{fontSize:11,padding:"4px 9px",background:"rgba(40,160,80,0.08)",border:"1px solid rgba(40,160,80,0.2)",borderRadius:6,color:"#60c880"}}>✅ Reviewed by {dv.reviewedBy}</span>}
+          </div>
+        </div>
+        {dv.reviewNotes&&<div style={{background:"rgba(40,160,80,0.04)",border:"1px solid rgba(40,160,80,0.15)",borderRadius:8,padding:"10px 13px",marginTop:8}}>
+          <div style={{fontSize:10,color:"#3a5a3a",letterSpacing:2,fontWeight:700,marginBottom:4}}>REVIEW FEEDBACK — {dv.reviewedBy} · {fts(dv.reviewDate)}</div>
+          <div style={{fontSize:13,color:"#6a8a6a",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{dv.reviewNotes}</div>
+        </div>}
+        {dv.sentTo===currentUser&&!dv.reviewNotes&&<ReviewInput onSubmit={notes=>submitReview(dv.id,notes)}/>}
+      </div>
+    ))}
+    {(g.drafts||[]).length===0&&<div style={{fontSize:13,color:"#2a3a4a",fontStyle:"italic",textAlign:"center",padding:30}}>No drafts yet. Upload the first version above.</div>}
+  </div>);
+}
+
+function ReviewInput({onSubmit}){
+  const[notes,setNotes]=useState("");
+  return(<div style={{marginTop:10}}>
+    <div style={{fontSize:11,color:"#c8832a",fontWeight:700,marginBottom:7}}>📝 You have been asked to review this draft — enter your feedback below:</div>
+    <textarea value={notes} onChange={e=>setNotes(e.target.value)} placeholder="Enter your review feedback, suggested edits, tracked changes notes…" style={{...I,resize:"vertical",height:80,fontSize:12,marginBottom:8}}/>
+    <button onClick={()=>{if(notes.trim())onSubmit(notes);}} style={{background:"linear-gradient(135deg,rgba(40,160,80,0.3),rgba(40,160,80,0.15))",border:"1px solid rgba(40,160,80,0.4)",borderRadius:7,color:"#60c880",padding:"7px 16px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}}>✅ Submit Review</button>
+  </div>);
+}
+
+function SubmissionTab({g,onSave}){
+  const[form,setForm]=useState(g.submission||{date:new Date().toISOString().slice(0,10),method:"Online portal",confirmNum:"",portalURL:"",submittedBy:"",notes:"",files:[]});
+  const f=(k,v)=>setForm(p=>({...p,[k]:v}));
+  return(<div style={{display:"grid",gap:16,maxWidth:800}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>Submission Record</div>
+    <div style={{background:"rgba(200,131,42,0.04)",border:"1px solid rgba(200,131,42,0.12)",borderRadius:11,padding:"12px 16px",fontSize:12,color:"#7a6a5a",lineHeight:1.8}}>📤 Log every submission detail. Upload the submitted documents. Record confirmation numbers and portal references as proof of submission.</div>
+    <div style={CB}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <div><label style={L}>Submission Date</label><input type="date" style={I} value={form.date} onChange={e=>f("date",e.target.value)}/></div>
+        <div><label style={L}>Method</label><select style={{...I,cursor:"pointer"}} value={form.method} onChange={e=>f("method",e.target.value)}><option>Online portal</option><option>Email</option><option>Hand delivery</option><option>Post</option></select></div>
+        <div><label style={L}>Confirmation Number</label><input style={I} value={form.confirmNum||""} onChange={e=>f("confirmNum",e.target.value)} placeholder="e.g. REF-2026-00312"/></div>
+        <div><label style={L}>Submitted By</label><input style={I} value={form.submittedBy||""} onChange={e=>f("submittedBy",e.target.value)}/></div>
+        <div style={{gridColumn:"span 2"}}><label style={L}>Portal / Submission URL</label><input style={I} value={form.portalURL||""} onChange={e=>f("portalURL",e.target.value)} placeholder="https://..."/></div>
+        <div style={{gridColumn:"span 2"}}><label style={L}>Notes</label><textarea style={{...I,resize:"vertical",height:65}} value={form.notes||""} onChange={e=>f("notes",e.target.value)} placeholder="Confirmation messages, next steps, acknowledgement from funder…"/></div>
+      </div>
+      <div style={{marginTop:12}}>
+        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:8}}>SUBMITTED DOCUMENTS</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:9}}>{(form.files||[]).map((f2,i)=><FTag key={i} file={f2} onRemove={()=>setForm(p=>({...p,files:p.files.filter((_,j)=>j!==i)}))}/>)}</div>
+        <UploadBtn label="ATTACH SUBMITTED DOCUMENT" onFile={file=>setForm(p=>({...p,files:[...(p.files||[]),file]}))}/>
+      </div>
+      <button onClick={()=>onSave({submission:form,submissionNum:form.confirmNum})} style={{marginTop:14,background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:8,color:"#fff",padding:"9px 22px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:2,fontFamily:"inherit"}}>SAVE SUBMISSION RECORD</button>
+    </div>
+  </div>);
+}
+
+
+function AwardTab({g,onSave}){
+  const[award,setAward]=useState(g.award||{letterDate:"",amount:"",startDate:"",endDate:"",reportCycle:"Quarterly",contact:"",conditions:"",files:[]});
+  const[disb,setDisb]=useState({date:new Date().toISOString().slice(0,10),amount:"",tranche:"",status:"Pending",notes:""});
+  const[bline,setBline]=useState({category:"Personnel",budgeted:"",spent:"",notes:""});
+  const af=(k,v)=>setAward(p=>({...p,[k]:v}));
+  const df=(k,v)=>setDisb(p=>({...p,[k]:v}));
+  const bf=(k,v)=>setBline(p=>({...p,[k]:v}));
+  const totalB=(g.budget||[]).reduce((s,b)=>s+(parseFloat(b.budgeted)||0),0);
+  const totalS=(g.budget||[]).reduce((s,b)=>s+(parseFloat(b.spent)||0),0);
+  const totalDisbRec=(g.disbursements||[]).filter(d=>d.status==="Received").reduce((s,d)=>s+(parseFloat(d.amount)||0),0);
+  const awardAmt=parseFloat((award.amount||"").replace(/[^0-9.]/g,""))||0;
+  return(<div style={{display:"grid",gap:16,maxWidth:900}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>Award & Financial Monitoring</div>
+    <div style={{background:"rgba(40,160,80,0.04)",border:"1px solid rgba(40,160,80,0.15)",borderRadius:11,padding:"12px 16px",fontSize:12,color:"#4a7a5a",lineHeight:1.8}}>
+      🏆 <strong style={{color:"#60c880"}}>This section proves financial accountability to funders.</strong> By maintaining a complete award record, disbursement tracker, and budget vs actuals, you demonstrate that RGN has the systems in place to manage grant funds responsibly — a critical requirement for future funding.
+    </div>
+    {awardAmt>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+      {[{l:"AWARD",v:award.amount,c:"#60c880"},{l:"DISBURSED",v:`R${totalDisbRec.toLocaleString()}`,c:"#c8a060"},{l:"OUTSTANDING",v:`R${Math.max(0,awardAmt-totalDisbRec).toLocaleString()}`,c:"#ff9070"},{l:"BUDGET USED",v:totalB>0?Math.round((totalS/totalB)*100)+"%":"—",c:totalB>0&&totalS/totalB>0.9?"#ff9070":"#60c880"}].map(s=>(<div key={s.l} style={CB}><div style={{fontSize:9,color:"#3a4a3a",letterSpacing:2,marginBottom:5}}>{s.l}</div><div style={{fontFamily:"Georgia,serif",fontSize:22,fontWeight:700,color:s.c}}>{s.v}</div></div>))}
+    </div>}
+    {/* Award details */}
+    <div style={CB}>
+      <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:12}}>AWARD DETAILS</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+        {[["Award Letter Date","letterDate","date"],["Award Amount","amount","text"],["Grant Start Date","startDate","date"],["Grant End Date","endDate","date"],["Funder Contact","contact","text"]].map(([l,k,t])=>(<div key={k}><label style={L}>{l}</label><input type={t} style={I} value={award[k]||""} onChange={e=>af(k,e.target.value)}/></div>))}
+        <div><label style={L}>Reporting Cycle</label><select style={{...I,cursor:"pointer"}} value={award.reportCycle||"Quarterly"} onChange={e=>af("reportCycle",e.target.value)}><option>Monthly</option><option>Quarterly</option><option>Bi-annual</option><option>Annual</option></select></div>
+        <div style={{gridColumn:"span 3"}}><label style={L}>Special Conditions</label><textarea style={{...I,resize:"vertical",height:55}} value={award.conditions||""} onChange={e=>af("conditions",e.target.value)}/></div>
+      </div>
+      <div style={{marginTop:12}}>
+        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:8}}>AWARD DOCUMENTS</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:7,marginBottom:9}}>{(award.files||[]).map((f,i)=><FTag key={i} file={f} onRemove={()=>setAward(p=>({...p,files:p.files.filter((_,j)=>j!==i)}))}/>)}</div>
+        <UploadBtn label="ATTACH AWARD LETTER / AGREEMENT" onFile={file=>setAward(p=>({...p,files:[...(p.files||[]),file]}))}/>
+      </div>
+      <button onClick={()=>onSave({award,awardAmount:award.amount,awardDate:award.letterDate})} style={{marginTop:14,background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:8,color:"#fff",padding:"9px 22px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:2,fontFamily:"inherit"}}>SAVE AWARD DETAILS</button>
+    </div>
+    {/* Disbursements */}
+    <div style={CB}>
+      <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:12}}>DISBURSEMENT TRACKER</div>
+      {(g.disbursements||[]).map((d,i)=>(
+        <div key={i} style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr auto",gap:8,alignItems:"center",padding:"9px 12px",background:"rgba(255,255,255,0.03)",borderRadius:8,border:"1px solid rgba(255,255,255,0.06)",marginBottom:7}}>
+          {[["TRANCHE",d.tranche||"—"],["AMOUNT",d.amount],["DATE",fd(d.date)]].map(([l,v])=>(<div key={l}><div style={{fontSize:9,color:"#2a3a4a",letterSpacing:1}}>{l}</div><div style={{fontFamily:"Georgia,serif",fontSize:13,color:"#c8a060"}}>{v}</div></div>))}
+          <select value={d.status} onChange={e=>{const dl=[...g.disbursements];dl[i]={...dl[i],status:e.target.value};onSave({disbursements:dl});}} style={{...I,padding:"4px 7px",fontSize:11,cursor:"pointer",color:d.status==="Received"?"#60c880":d.status==="Pending"?"#c8a060":"#ff9070"}}><option>Pending</option><option>Received</option><option>Late</option><option>Disputed</option></select>
+          <button onClick={()=>onSave({disbursements:g.disbursements.filter((_,j)=>j!==i)})} style={{background:"none",border:"none",color:"#3a2a2a",cursor:"pointer",fontSize:14}}>×</button>
+        </div>
+      ))}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr) auto",gap:9,alignItems:"end",marginTop:9}}>
+        {[["Tranche","tranche"],["Amount (R)","amount"],["Date","date"],["Notes","notes"]].map(([l,k])=>(<div key={k}><label style={L}>{l}</label><input type={k==="date"?"date":"text"} style={{...I,fontSize:12,padding:"7px 10px"}} value={disb[k]||""} onChange={e=>df(k,e.target.value)}/></div>))}
+        <div><label style={L}>Status</label><select style={{...I,fontSize:12,padding:"7px 10px",cursor:"pointer"}} value={disb.status} onChange={e=>df("status",e.target.value)}><option>Pending</option><option>Received</option><option>Late</option></select></div>
+        <button onClick={()=>{if(!disb.amount)return;onSave({disbursements:[...(g.disbursements||[]),{...disb}]});setDisb({date:new Date().toISOString().slice(0,10),amount:"",tranche:"",status:"Pending",notes:""});}} style={{background:"rgba(200,131,42,0.12)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"9px 13px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}}>+ ADD</button>
+      </div>
+    </div>
+    {/* Budget vs actuals */}
+    <div style={CB}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700}}>BUDGET vs ACTUALS</div>
+        {totalB>0&&<div style={{fontSize:12,color:"#c8a060"}}>R{totalS.toLocaleString()} of R{totalB.toLocaleString()} used ({Math.round((totalS/totalB)*100)}%)</div>}
+      </div>
+      {totalB>0&&<div style={{height:8,background:"rgba(255,255,255,0.06)",borderRadius:4,overflow:"hidden",marginBottom:12}}><div style={{width:`${Math.min(100,(totalS/totalB)*100)}%`,height:"100%",background:totalS/totalB>0.9?"linear-gradient(90deg,#ff7060,#ff9070)":"linear-gradient(90deg,#c8832a,#40b060)",borderRadius:4,transition:"width 0.5s"}}/></div>}
+      {(g.budget||[]).map((b,i)=>{
+        const pct=parseFloat(b.budgeted)>0?(parseFloat(b.spent)||0)/parseFloat(b.budgeted)*100:0;
+        return(<div key={i} style={{padding:"9px 12px",background:"rgba(255,255,255,0.03)",borderRadius:8,border:"1px solid rgba(255,255,255,0.06)",marginBottom:7}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+            <span style={{fontSize:12,color:"#c0b0a0"}}>{b.category}</span>
+            <div style={{display:"flex",gap:12,alignItems:"center"}}>
+              <span style={{fontSize:11,color:"#3a4a5a"}}>Budgeted: <strong style={{color:"#c8a060"}}>R{parseFloat(b.budgeted||0).toLocaleString()}</strong></span>
+              <span style={{fontSize:11,color:"#3a4a5a"}}>Spent: <strong style={{color:pct>90?"#ff9070":"#60c880"}}>R{parseFloat(b.spent||0).toLocaleString()}</strong></span>
+              <button onClick={()=>onSave({budget:g.budget.filter((_,j)=>j!==i)})} style={{background:"none",border:"none",color:"#3a2a2a",cursor:"pointer",fontSize:13}}>×</button>
+            </div>
+          </div>
+          <div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${Math.min(100,pct)}%`,height:"100%",background:pct>100?"#ff6060":pct>80?"#e8a84a":"#40b060"}}/></div>
+          {b.notes&&<div style={{fontSize:11,color:"#3a4a5a",marginTop:4}}>{b.notes}</div>}
+        </div>);
+      })}
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 2fr auto",gap:9,alignItems:"end",marginTop:9}}>
+        <div><label style={L}>Category</label><select style={{...I,fontSize:12,padding:"7px 10px",cursor:"pointer"}} value={bline.category} onChange={e=>bf("category",e.target.value)}>{BUDGET_CATS.map(c=><option key={c}>{c}</option>)}</select></div>
+        <div><label style={L}>Budgeted (R)</label><input style={{...I,fontSize:12,padding:"7px 10px"}} value={bline.budgeted} onChange={e=>bf("budgeted",e.target.value)} placeholder="0"/></div>
+        <div><label style={L}>Spent (R)</label><input style={{...I,fontSize:12,padding:"7px 10px"}} value={bline.spent} onChange={e=>bf("spent",e.target.value)} placeholder="0"/></div>
+        <div><label style={L}>Notes</label><input style={{...I,fontSize:12,padding:"7px 10px"}} value={bline.notes} onChange={e=>bf("notes",e.target.value)}/></div>
+        <button onClick={()=>{if(!bline.budgeted&&!bline.spent)return;onSave({budget:[...(g.budget||[]),{...bline}]});setBline({category:"Personnel",budgeted:"",spent:"",notes:""});}} style={{background:"rgba(200,131,42,0.12)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"9px 13px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}}>+ ADD</button>
+      </div>
+    </div>
+  </div>);
+}
+
+function ImplTab({g,team,currentUser,onSave}){
+  const[showParser,setShowParser]=useState(false);
+  const[planText,setPlanText]=useState("");
+  const[editNote,setEditNote]=useState({});
+  function parsePlan(){const m=parseImplPlan(planText);onSave({implPlan:m});setShowParser(false);setPlanText("");}
+  function updM(id,u){onSave({implPlan:(g.implPlan||[]).map(m=>m.id===id?{...m,...u}:m)});}
+  function updT(mId,tId,u){onSave({implPlan:(g.implPlan||[]).map(m=>m.id===mId?{...m,tasks:(m.tasks||[]).map(t=>t.id===tId?{...t,...u}:t)}:m)});}
+  return(<div style={{display:"grid",gap:16,maxWidth:900}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:9}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>Implementation Plan & Progress Tracking</div>
+      <button onClick={()=>setShowParser(p=>!p)} style={{background:"rgba(200,131,42,0.1)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"7px 14px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit"}}>✦ {showParser?"Hide":"AI PARSE PLAN"}</button>
+    </div>
+    {showParser&&<div style={CB}>
+      <div style={{fontSize:10,color:"#3a4a3a",letterSpacing:2,fontWeight:700,marginBottom:10}}>PASTE IMPLEMENTATION PLAN — AI WILL CREATE MILESTONES</div>
+      <div style={{fontSize:12,color:"#5a6a5a",marginBottom:10,lineHeight:1.75}}>Paste your implementation plan text. The system will automatically extract phases, milestones, and tasks to build a project timeline with progress tracking.</div>
+      <textarea value={planText} onChange={e=>setPlanText(e.target.value)} placeholder={"Phase 1: Baseline Assessment (Months 1-2)\n- Conduct community needs assessment\n- Identify 500 target beneficiaries\n- Establish M&E framework\n\nPhase 2: Capacity Building (Months 3-6)\n- Deliver 12 training workshops\n- Train 3 legal advisors\n\nPhase 3: Implementation (Months 7-12)\n- Run weekly legal clinics\n- File 200 CCMA referrals"} style={{...I,resize:"vertical",height:180,fontSize:12,lineHeight:1.85,marginBottom:9}}/>
+      <button onClick={parsePlan} disabled={!planText.trim()} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:8,color:"#fff",padding:"9px 22px",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:2,fontFamily:"inherit"}}>✦ GENERATE TIMELINE</button>
+    </div>}
+    {(g.implPlan||[]).length===0&&!showParser&&<div style={{fontSize:13,color:"#2a3a4a",fontStyle:"italic",textAlign:"center",padding:40}}>No implementation plan yet. Click "AI Parse Plan" to import from text, or add phases manually.</div>}
+    {(g.implPlan||[]).map((m,mi)=>{
+      const doneTasks=(m.tasks||[]).filter(t=>t.done).length;
+      const totalTasks=(m.tasks||[]).length;
+      const pct=totalTasks>0?Math.round((doneTasks/totalTasks)*100):m.progress||0;
+      const stC={Pending:"#c8a060","In Progress":"#7a90d0",Completed:"#60c880",Blocked:"#ff9070"};
+      return(<div key={m.id} style={{...CB,borderColor:pct===100?"rgba(40,160,80,0.3)":"rgba(200,131,42,0.16)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+          <div style={{fontFamily:"Georgia,serif",fontSize:15,color:"#e0d0b0",fontWeight:700,flex:1}}>{m.title}</div>
+          <div style={{display:"flex",gap:7,flexShrink:0,marginLeft:12,flexWrap:"wrap"}}>
+            <select value={m.status||"Pending"} onChange={e=>updM(m.id,{status:e.target.value})} style={{...I,padding:"4px 8px",fontSize:11,color:stC[m.status]||"#c8a060",cursor:"pointer",width:"auto"}}><option>Pending</option><option value="In Progress">In Progress</option><option>Completed</option><option>Blocked</option></select>
+            <select value={m.responsible||""} onChange={e=>updM(m.id,{responsible:e.target.value})} style={{...I,padding:"4px 8px",fontSize:11,cursor:"pointer",width:"auto"}}><option value="">Assign lead…</option>{team.map(t=>(<option key={t}>{t}</option>))}</select>
+            <button onClick={()=>onSave({implPlan:(g.implPlan||[]).filter(x=>x.id!==m.id)})} style={{background:"none",border:"none",color:"#3a2a2a",cursor:"pointer",fontSize:15}}>×</button>
+          </div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><span style={{fontSize:10,color:"#2a3a4a",letterSpacing:1}}>PROGRESS</span><span style={{fontSize:11,color:pct===100?"#60c880":"#c8a060",fontWeight:700}}>{pct}%</span></div>
+          <div style={{height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:pct===100?"#40b060":"linear-gradient(90deg,#c8832a,#e8a840)",transition:"width 0.4s",borderRadius:3}}/></div>
+        </div>
+        {(m.tasks||[]).map(task=>(<div key={task.id} style={{display:"flex",alignItems:"flex-start",gap:9,padding:"7px 10px",background:task.done?"rgba(40,160,80,0.04)":"rgba(255,255,255,0.02)",borderRadius:7,border:`1px solid ${task.done?"rgba(40,160,80,0.15)":"rgba(255,255,255,0.05)"}`,marginBottom:5}}>
+          <input type="checkbox" checked={task.done} onChange={()=>updT(m.id,task.id,{done:!task.done})} style={{width:13,height:13,accentColor:"#c8832a",cursor:"pointer",flexShrink:0,marginTop:2}}/>
+          <div style={{flex:1,fontSize:12,color:task.done?"#3a5a3a":"#b0a090",textDecoration:task.done?"line-through":"none",lineHeight:1.6}}>{task.text}{task.dueDate&&<span style={{fontSize:10,color:"#2a3a4a",marginLeft:8}}>Due: {task.dueDate}</span>}</div>
+          <select value={task.responsible||""} onChange={e=>updT(m.id,task.id,{responsible:e.target.value})} style={{...I,padding:"3px 6px",fontSize:10,cursor:"pointer",width:"auto"}}><option value="">Assign…</option>{team.map(t=>(<option key={t}>{t}</option>))}</select>
+        </div>))}
+        <textarea placeholder="Add a task (Enter to save)…" style={{...I,resize:"none",height:45,fontSize:12,padding:"7px 10px",marginTop:7}} onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();const t=e.target.value.trim();if(t){updM(m.id,{tasks:[...(m.tasks||[]),{id:uid(),text:t,done:false,dueDate:"",responsible:""}]});e.target.value="";};}}}/>
+        {editNote[m.id]!==undefined?<div style={{marginTop:9}}>
+          <textarea value={editNote[m.id]} onChange={e=>setEditNote(p=>({...p,[m.id]:e.target.value}))} style={{...I,resize:"vertical",height:65,fontSize:12}} placeholder="Progress note…"/>
+          <div style={{display:"flex",gap:7,marginTop:6}}>
+            <button onClick={()=>{updM(m.id,{notes:editNote[m.id]});setEditNote(p=>{const n={...p};delete n[m.id];return n;});}} style={{background:"linear-gradient(135deg,rgba(40,160,80,0.3),rgba(40,160,80,0.15))",border:"1px solid rgba(40,160,80,0.3)",borderRadius:6,color:"#60c880",padding:"6px 14px",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit"}}>Save</button>
+            <button onClick={()=>setEditNote(p=>{const n={...p};delete n[m.id];return n;})} style={{background:"none",border:"none",color:"#3a4a5a",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Cancel</button>
+          </div>
+        </div>:<div style={{marginTop:7}}>
+          {m.notes&&<div style={{fontSize:12,color:"#5a6a5a",lineHeight:1.7,marginBottom:7,padding:"8px 11px",background:"rgba(255,255,255,0.02)",borderRadius:7,border:"1px solid rgba(255,255,255,0.04)"}}>{m.notes}</div>}
+          <button onClick={()=>setEditNote(p=>({...p,[m.id]:m.notes||""}))} style={{background:"none",border:"none",color:"#3a4a5a",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ {m.notes?"Edit":"Add"} progress note</button>
+        </div>}
+      </div>);
+    })}
+    <button onClick={()=>onSave({implPlan:[...(g.implPlan||[]),{id:uid(),title:"New Phase",tasks:[],dueDate:"",status:"Pending",progress:0,notes:"",responsible:""}]})} style={{background:"transparent",border:"1px dashed rgba(200,131,42,0.3)",borderRadius:9,color:"#c8832a",padding:"11px",fontSize:12,cursor:"pointer",letterSpacing:1,fontFamily:"inherit"}}>+ ADD PHASE / MILESTONE</button>
+  </div>);
+}
+
+function ActivityTab({g}){
+  return(<div style={{maxWidth:700}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>Activity Log</div>
+    {[...(g.activities||[])].reverse().map((a,i)=>(<div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:9,padding:"11px 15px",marginBottom:9}}>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:12,color:"#c8832a",fontWeight:600}}>{a.author}</span><span style={{fontSize:11,color:"#2a3a4a"}}>{fts(a.ts)}</span></div>
+      <div style={{fontSize:13,color:"#8a8a7a",lineHeight:1.75}}>{a.type==="advance"?<><span style={{color:"#60c880"}}>→ </span>{a.content}</>:a.content}</div>
+    </div>))}
+    {(g.activities||[]).length===0&&<div style={{color:"#2a3a4a",fontSize:13,fontStyle:"italic"}}>No activity yet. Add your first note from the panel on the left.</div>}
+  </div>);
+}
+
+
+// ── GRANT CARD ────────────────────────────────────────────────────────────────
+function Card({grant,onClick}){
+  const sc=SC[grant.status]||SC["Opportunity Identified"];
+  const d=grant.fullDeadline||grant.loiDeadline||grant.internalDeadline;
+  const dy=d?daysUntil(d):null;const u=urgCls(dy);
+  const docsOk=(grant.docs||[]).filter(x=>x.done).length;
+  return(<div onClick={onClick} style={{marginBottom:6,padding:"11px 12px",background:sc.bg,border:`1px solid ${sc.border}`,borderRadius:8,cursor:"pointer",transition:"all 0.15s"}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:13,color:"#e0d0b0",fontWeight:600,marginBottom:3,lineHeight:1.35}}>{grant.grantName}</div>
+    <div style={{fontSize:11,color:"#3a4a5a",marginBottom:7}}>{grant.funderName}</div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{display:"flex",gap:5,alignItems:"center"}}>
+        {grant.lead&&<span style={{fontSize:10,background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:4,padding:"1px 6px",color:"#3a4a5a"}}>👤 {grant.lead.split(" ")[0]}</span>}
+        {grant.amountRequested&&<span style={{fontSize:10,color:"#8a7a5a",fontFamily:"Georgia,serif"}}>{grant.amountRequested}</span>}
+      </div>
+      {dy!==null&&<span style={{fontSize:10,fontWeight:700,padding:"1px 7px",borderRadius:5,background:UC[u].bg,color:UC[u].t,border:`1px solid ${UC[u].b}`}}>{dy<=0?"OVR":`${dy}d`}</span>}
+    </div>
+    {(grant.docs||[]).length>0&&<div style={{marginTop:6,height:2,background:"rgba(255,255,255,0.05)",borderRadius:1}}><div style={{width:`${(docsOk/(grant.docs||[]).length)*100}%`,height:"100%",background:"#c8832a",borderRadius:1}}/></div>}
+  </div>);
+}
+
+// ── GRANTS TABLE ──────────────────────────────────────────────────────────────
+function GrantsTable({grants,onSelect}){
+  return(<div style={{overflowX:"auto"}}>
+    <table style={{width:"100%",borderCollapse:"collapse"}}>
+      <thead><tr style={{borderBottom:"1px solid rgba(200,131,42,0.2)"}}>
+        {["Grant / Funder","Pillar","Stage","Lead","Requested","Alignment","Deadline","Days","Docs",""].map(h=>(<th key={h} style={{textAlign:"left",fontSize:10,color:"#3a5a3a",fontWeight:700,letterSpacing:2,textTransform:"uppercase",padding:"9px 12px"}}>{h}</th>))}
+      </tr></thead>
+      <tbody>{grants.map(g=>{
+        const d=g.fullDeadline||g.loiDeadline||g.internalDeadline;
+        const dy=d?daysUntil(d):null;const u=urgCls(dy);const sc=SC[g.status]||SC["Opportunity Identified"];
+        const docsOk=(g.docs||[]).filter(x=>x.done).length;const pc=PC[g.pillar];
+        return(<tr key={g.id} style={{borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+          <td style={{padding:"11px 12px",cursor:"pointer"}} onClick={()=>onSelect(g)}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:600,marginBottom:2}}>{g.grantName}</div><div style={{fontSize:12,color:"#3a4a5a"}}>{g.funderName}</div></td>
+          <td style={{padding:"11px 12px"}}>{pc&&<span style={{fontSize:10,padding:"2px 7px",borderRadius:9,background:pc.bg,color:pc.t,border:`1px solid ${pc.b}`,display:"inline-block",fontWeight:600}}>{(g.pillar||"").split("&")[0].trim().substring(0,14)}</span>}</td>
+          <td style={{padding:"11px 12px"}}><span style={{fontSize:11,padding:"3px 9px",borderRadius:9,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`,whiteSpace:"nowrap"}}>{g.status}</span></td>
+          <td style={{padding:"11px 12px",fontSize:13,color:"#7a8a9a"}}>{g.lead||"—"}</td>
+          <td style={{padding:"11px 12px",fontFamily:"Georgia,serif",fontSize:13,color:"#c8a060"}}>{g.amountRequested||"—"}</td>
+          <td style={{padding:"11px 12px"}}><Stars value={g.stars||0} size={12}/></td>
+          <td style={{padding:"11px 12px",fontSize:12,color:"#4a5a4a"}}>{d?fd(d):"—"}</td>
+          <td style={{padding:"11px 12px"}}>{dy!==null?<span style={{fontSize:12,fontWeight:700,padding:"2px 8px",borderRadius:6,background:UC[u].bg,color:UC[u].t,border:`1px solid ${UC[u].b}`,whiteSpace:"nowrap"}}>{dy<=0?"OVERDUE":`${dy}d`}</span>:<span style={{color:"#141e28"}}>—</span>}</td>
+          <td style={{padding:"11px 12px"}}><div style={{fontSize:12,color:"#2a4a2a",marginBottom:2}}>{docsOk}/{(g.docs||[]).length}</div><div style={{width:36,height:3,background:"rgba(255,255,255,0.07)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${(g.docs||[]).length>0?(docsOk/(g.docs||[]).length)*100:0}%`,height:"100%",background:"#c8832a"}}/></div></td>
+          <td style={{padding:"11px 12px"}}><button onClick={()=>onSelect(g)} style={{background:"rgba(200,131,42,0.08)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:6,color:"#c8a060",padding:"4px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",whiteSpace:"nowrap"}}>Open →</button></td>
+        </tr>);
+      })}</tbody>
+    </table>
+    {grants.length===0&&<div style={{textAlign:"center",padding:50,color:"#1a2a3a",fontSize:14}}>No grants match your filters.</div>}
+  </div>);
+}
+
+// ── EXECUTIVE DASHBOARD ───────────────────────────────────────────────────────
 function ExecutiveDashboard({grants,onSelect}){
   const total=grants.reduce((s,g)=>s+(parseFloat((g.amountRequested||"").replace(/[^0-9.]/g,""))||0),0);
   const awarded=grants.filter(g=>["Awarded","Implementation","Reporting","Completed"].includes(g.status));
   const totalAwarded=grants.reduce((s,g)=>s+(parseFloat((g.awardAmount||"").replace(/[^0-9.]/g,""))||0),0);
   const submitted=grants.filter(g=>["Submitted","Under Review","Awarded","Implementation","Reporting","Completed"].includes(g.status)).length;
   const successRate=submitted>0?Math.round((awarded.length/submitted)*100):0;
-  const upcoming=grants.map(g=>{const d=g.fullProposalDeadline||g.loiDeadline||g.internalReviewDeadline;return{...g,_d:d,_days:d?daysUntil(d):null};}).filter(g=>g._days!==null&&g._days>=0&&g._days<=30).sort((a,b)=>a._days-b._days).slice(0,5);
+  const upcoming=grants.map(g=>{const d=g.fullDeadline||g.loiDeadline||g.internalDeadline;return{...g,_d:d,_days:d?daysUntil(d):null};}).filter(g=>g._days!==null&&g._days>=0&&g._days<=30).sort((a,b)=>a._days-b._days).slice(0,5);
   const bySector={};grants.forEach(g=>(g.sectors||[]).forEach(s=>{bySector[s]=(bySector[s]||0)+1;}));
   const sectorList=Object.entries(bySector).sort(([,a],[,b])=>b-a).slice(0,7);const maxSec=sectorList[0]?.[1]||1;
   const byPillar={};grants.forEach(g=>{if(g.pillar)byPillar[g.pillar]=(byPillar[g.pillar]||0)+1;});
   const active=grants.filter(g=>!["Archived","Declined","Closed Before Applying"].includes(g.status));
-  const C={background:"linear-gradient(160deg,#0d1825,#0a1220)",border:"1px solid rgba(200,131,42,0.16)",borderRadius:13,padding:"18px 20px",boxShadow:"0 8px 32px rgba(0,0,0,0.4)"};
-  return(
-    <div style={{display:"grid",gap:16,maxWidth:1180}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div>
-          <div style={{fontSize:9,color:"#c8832a",letterSpacing:4,marginBottom:3}}>RGN GRANT MANAGEMENT</div>
-          <h2 style={{fontFamily:"Georgia,serif",fontSize:26,color:"#f0e0c0",fontWeight:700,margin:0}}>Executive Overview</h2>
-        </div>
-        <div style={{fontSize:11,color:"#3a4a5a"}}>{new Date().toLocaleDateString("en-ZA",{day:"numeric",month:"long",year:"numeric"})}</div>
+  return(<div style={{display:"grid",gap:16,maxWidth:1180}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div><div style={{fontSize:9,color:"#c8832a",letterSpacing:4,marginBottom:3}}>RGN GRANT MANAGEMENT</div><h2 style={{fontFamily:"Georgia,serif",fontSize:26,color:"#f0e0c0",fontWeight:700,margin:0}}>Executive Overview</h2></div>
+      <div style={{fontSize:11,color:"#3a4a5a"}}>{new Date().toLocaleDateString("en-ZA",{day:"numeric",month:"long",year:"numeric"})}</div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>
+      {[{l:"Active Grants",v:active.length,c:"#e0d0b0",s:"in pipeline"},{l:"Pipeline Value",v:`R${(total/1e6).toFixed(1)}M`,c:"#c8a060",s:"total requested"},{l:"Total Awarded",v:totalAwarded>0?`R${(totalAwarded/1e6).toFixed(2)}M`:"R0",c:"#5dc080",s:"approved"},{l:"Funds Received",v:"R0.000",c:"#60c0a0",s:"disbursed"},{l:"Submitted",v:submitted,c:"#70a0e0",s:"applications"},{l:"Success Rate",v:successRate+"%",c:successRate>50?"#60c880":successRate>25?"#e8a84a":"#ff9070",s:"award conversion"}].map(s=>(<div key={s.l} style={{...CB,padding:"14px 16px",textAlign:"center"}}><div style={{fontSize:9,color:"#3a4a3a",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>{s.l}</div><div style={{fontFamily:"Georgia,serif",fontSize:26,fontWeight:700,color:s.c,lineHeight:1,marginBottom:3}}>{s.v}</div><div style={{fontSize:9,color:"#2a3a2a"}}>{s.s}</div></div>))}
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
+      <div style={CB}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>⏰ Upcoming Deadlines</div>
+        {upcoming.length===0&&<div style={{fontSize:13,color:"#1a2a3a",fontStyle:"italic"}}>No deadlines in next 30 days.</div>}
+        {upcoming.map(g=>{const u=urgCls(g._days);return(<div key={g.id} onClick={()=>onSelect(g)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 10px",background:UC[u].bg,border:`1px solid ${UC[u].b}`,borderRadius:8,marginBottom:7,cursor:"pointer"}}><div><div style={{fontSize:12,color:"#c0b0a0",fontFamily:"Georgia,serif"}}>{g.funderName}</div><div style={{fontSize:10,color:"#3a4a5a",marginTop:1}}>{fd(g._d)}</div></div><span style={{fontSize:13,fontWeight:700,color:UC[u].t}}>{g._days}d</span></div>);})}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>
-        {[{l:"Active Grants",v:active.length,c:"#e0d0b0",sub:"in pipeline"},{l:"Pipeline Value",v:`R${(total/1e6).toFixed(1)}M`,c:"#c8a060",sub:"total requested"},{l:"Total Awarded",v:totalAwarded>0?`R${(totalAwarded/1e6).toFixed(2)}M`:"R0",c:"#5dc080",sub:"approved"},{l:"Funds Received",v:"R0.000",c:"#60c0a0",sub:"disbursed"},{l:"Submitted",v:submitted,c:"#70a0e0",sub:"applications"},{l:"Success Rate",v:successRate+"%",c:successRate>50?"#60c880":successRate>25?"#e8a84a":"#ff9070",sub:"award conversion"}].map(s=>(
-          <div key={s.l} style={{...C,padding:"14px 16px",textAlign:"center"}}>
-            <div style={{fontSize:9,color:"#3a4a3a",letterSpacing:2,textTransform:"uppercase",marginBottom:5}}>{s.l}</div>
-            <div style={{fontFamily:"Georgia,serif",fontSize:26,fontWeight:700,color:s.c,lineHeight:1,marginBottom:3}}>{s.v}</div>
-            <div style={{fontSize:9,color:"#2a3a2a"}}>{s.sub}</div>
-          </div>
-        ))}
+      <div style={CB}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>🏭 Sector Breakdown</div>
+        {sectorList.map(([s,n])=>(<div key={s} style={{marginBottom:9}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:11,color:"#7a8a9a"}}>{s}</span><span style={{fontSize:11,color:"#7090c0",fontWeight:600}}>{n}</span></div><div style={{height:3,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${(n/maxSec)*100}%`,height:"100%",background:"linear-gradient(90deg,#3a5090,#7090d0)"}}/></div></div>))}
+        {sectorList.length===0&&<div style={{fontSize:12,color:"#1a2a3a",fontStyle:"italic"}}>Assign sectors to see breakdown.</div>}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:16}}>
-        <div style={C}>
-          <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>⏰ Upcoming Deadlines</div>
-          {upcoming.length===0&&<div style={{fontSize:13,color:"#1a2a3a",fontStyle:"italic"}}>No deadlines in next 30 days.</div>}
-          {upcoming.map(g=>{const u=urgCls(g._days);return(
-            <div key={g.id} onClick={()=>onSelect(g)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 10px",background:US[u].bg,border:`1px solid ${US[u].b}`,borderRadius:8,marginBottom:7,cursor:"pointer"}}>
-              <div><div style={{fontSize:12,color:"#c0b0a0",fontFamily:"Georgia,serif"}}>{g.funderName}</div><div style={{fontSize:10,color:"#3a4a5a",marginTop:1}}>{fd(g._d)}</div></div>
-              <span style={{fontSize:13,fontWeight:700,color:US[u].t}}>{g._days}d</span>
-            </div>
-          );})}
-        </div>
-        <div style={C}>
-          <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>🏭 Sector Breakdown</div>
-          {sectorList.map(([s,n])=>(
-            <div key={s} style={{marginBottom:9}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:11,color:"#7a8a9a"}}>{s}</span><span style={{fontSize:11,color:"#7090c0",fontWeight:600}}>{n}</span></div>
-              <div style={{height:3,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${(n/maxSec)*100}%`,height:"100%",background:"linear-gradient(90deg,#3a5090,#7090d0)"}}/></div>
-            </div>
-          ))}
-          {sectorList.length===0&&<div style={{fontSize:12,color:"#1a2a3a",fontStyle:"italic"}}>Assign sectors to see breakdown.</div>}
-        </div>
-        <div style={C}>
-          <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>🎯 By Strategic Pillar</div>
-          {PILLARS.map(p=>{const n=byPillar[p]||0;const pc=PILLAR_COLORS[p];if(!pc)return null;return(
-            <div key={p} style={{marginBottom:11}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:11,color:pc.t}}>{p.split("&")[0].trim()}</span><span style={{fontSize:13,color:pc.t,fontWeight:700}}>{n}</span></div>
-              <div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${grants.length>0?(n/grants.length)*100:0}%`,height:"100%",background:pc.dot}}/></div>
-            </div>
-          );})}
-        </div>
-      </div>
-      <div style={C}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>📊 Full Pipeline Status</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:8}}>
-          {STAGES_ACTIVE.map(s=>{const n=grants.filter(g=>g.status===s).length;const sc=STAGE_COLORS[s];const guide=STAGE_GUIDE[s];return(
-            <div key={s} style={{textAlign:"center"}}>
-              <div style={{fontFamily:"Georgia,serif",fontSize:20,fontWeight:700,color:sc.text,marginBottom:3}}>{n}</div>
-              <div style={{height:28,background:sc.bg,border:`1px solid ${sc.border}`,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:5}}><span style={{fontSize:14}}>{guide?.icon}</span></div>
-              <div style={{fontSize:9,color:sc.text,lineHeight:1.3,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s}</div>
-            </div>
-          );})}
-        </div>
+      <div style={CB}>
+        <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>🎯 By Strategic Pillar</div>
+        {PILLARS.map(p=>{const n=byPillar[p]||0;const pc=PC[p];if(!pc)return null;return(<div key={p} style={{marginBottom:11}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:11,color:pc.t}}>{p.split("&")[0].trim()}</span><span style={{fontSize:13,color:pc.t,fontWeight:700}}>{n}</span></div><div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${grants.length>0?(n/grants.length)*100:0}%`,height:"100%",background:pc.dot}}/></div></div>);})}
       </div>
     </div>
-  );
-}
-
-function SectorView({grants,onSelect}){
-  const[filterPillar,setFilterPillar]=useState("All");
-  const[filterSector,setFilterSector]=useState("All");
-  const[filterProvince,setFilterProvince]=useState("All");
-  const[minScore,setMinScore]=useState(0);
-  const filtered=grants.filter(g=>{
-    if(filterPillar!=="All"&&g.pillar!==filterPillar)return false;
-    if(filterSector!=="All"&&!(g.sectors||[]).includes(filterSector))return false;
-    if(filterProvince!=="All"&&g.province!==filterProvince)return false;
-    if(minScore>0&&(g.strategicAlignmentScore||0)<minScore)return false;
-    return true;
-  });
-  const sel2={...I,padding:"7px 12px",fontSize:12,width:"auto",cursor:"pointer"};
-  return(
-    <div style={{display:"grid",gap:14}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:8}}>
-        <div>
-          <div style={{fontSize:9,color:"#c8832a",letterSpacing:4,marginBottom:2}}>MULTI-SECTOR</div>
-          <h2 style={{fontFamily:"Georgia,serif",fontSize:22,color:"#f0e0c0",fontWeight:700,margin:0}}>Sector Filter View</h2>
-        </div>
-        <span style={{fontSize:12,color:"#c8832a"}}>{filtered.length} of {grants.length} grants shown</span>
-      </div>
-      <div style={{background:"rgba(0,0,0,0.3)",border:"1px solid rgba(200,131,42,0.14)",borderRadius:11,padding:"12px 16px",display:"flex",flexWrap:"wrap",gap:9,alignItems:"center"}}>
-        <select style={sel2} value={filterPillar} onChange={e=>setFilterPillar(e.target.value)}><option value="All">All Pillars</option>{PILLARS.map(p=><option key={p}>{p}</option>)}</select>
-        <select style={sel2} value={filterSector} onChange={e=>setFilterSector(e.target.value)}><option value="All">All Sectors</option>{SECTORS.map(s=><option key={s}>{s}</option>)}</select>
-        <select style={sel2} value={filterProvince} onChange={e=>setFilterProvince(e.target.value)}><option value="All">All Provinces</option>{PROVINCES.map(p=><option key={p}>{p}</option>)}</select>
-        <div style={{display:"flex",alignItems:"center",gap:7}}>
-          <span style={{fontSize:10,color:"#4a5a6a",letterSpacing:2}}>MIN ★:</span>
-          {[0,1,2,3,4,5].map(n=><button key={n} onClick={()=>setMinScore(n)} style={{fontSize:12,padding:"3px 7px",borderRadius:5,cursor:"pointer",background:minScore===n?"rgba(200,131,42,0.2)":"rgba(255,255,255,0.04)",border:minScore===n?"1px solid rgba(200,131,42,0.4)":"1px solid rgba(255,255,255,0.08)",color:minScore===n?"#c8832a":"#3a4a5a"}}>{n===0?"Any":n+"★"}</button>)}
-        </div>
-        <button onClick={()=>{setFilterPillar("All");setFilterSector("All");setFilterProvince("All");setMinScore(0);}} style={{marginLeft:"auto",fontSize:11,color:"#5a4a3a",background:"transparent",border:"none",cursor:"pointer",letterSpacing:1}}>CLEAR</button>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-        {filtered.map(g=>{
-          const pc=PILLAR_COLORS[g.pillar];const sc=STAGE_COLORS[g.status]||STAGE_COLORS["Opportunity Identified"];
-          const d=g.fullProposalDeadline||g.loiDeadline;const dy=d?daysUntil(d):null;const u=urgCls(dy);
-          const [hov,setHov]=useState(false);
-          return(
-            <div key={g.id} onClick={()=>onSelect(g)} onMouseOver={()=>setHov(true)} onMouseOut={()=>setHov(false)} style={{background:"linear-gradient(145deg,#0d1825,#080e18)",border:`1px solid ${hov?"#c8832a":"rgba(200,131,42,0.14)"}`,borderRadius:11,padding:"15px 16px",cursor:"pointer",transition:"all 0.2s",boxShadow:"0 4px 20px rgba(0,0,0,0.4)"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:9}}>
-                <div><div style={{fontSize:11,color:"#4a5a6a",marginBottom:2}}>{g.funderName}</div><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,lineHeight:1.3}}>{g.grantName}</div></div>
-                <StarRating value={g.strategicAlignmentScore||0} size={12}/>
-              </div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:9}}>
-                {pc&&<span style={{fontSize:11,padding:"2px 8px",borderRadius:10,background:pc.bg,color:pc.t,border:`1px solid ${pc.b}`,fontWeight:600}}>{(g.pillar||"").split("&")[0].trim().substring(0,18)}</span>}
-                {(g.sectors||[]).slice(0,2).map(s=><SectorChip key={s} sector={s}/>)}
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:9}}>
-                <div><div style={{fontSize:9,color:"#2a3a4a",letterSpacing:1}}>REQUESTED</div><div style={{fontFamily:"Georgia,serif",fontSize:13,color:"#c8a060",fontWeight:600}}>{g.amountRequested||"TBD"}</div></div>
-                <div><div style={{fontSize:9,color:"#2a3a4a",letterSpacing:1}}>PROVINCE</div><div style={{fontSize:12,color:"#7a8a9a"}}>{g.province||"—"}</div></div>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:11,padding:"2px 8px",borderRadius:8,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`}}>{g.status}</span>
-                {d&&<span style={{fontSize:11,fontWeight:700,color:US[u].t}}>{dy<=0?"OVERDUE":`${dy}d`}</span>}
-              </div>
-            </div>
-          );
-        })}
-        {filtered.length===0&&<div style={{gridColumn:"span 3",textAlign:"center",padding:60,color:"#1a2a3a",fontSize:14}}>No grants match these filters.</div>}
+    <div style={CB}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>📊 Full Pipeline Status</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:8}}>
+        {STAGES_ACTIVE.map(s=>{const n=grants.filter(g=>g.status===s).length;const sc=SC[s];return(<div key={s} style={{textAlign:"center"}}><div style={{fontFamily:"Georgia,serif",fontSize:26,fontWeight:700,color:n>0?sc.dot:"#1a2a3a",marginBottom:5}}>{n}</div><div style={{fontSize:9,color:"#1a2a3a",lineHeight:1.3,letterSpacing:0.5}}>{STAGE_GUIDE[s]?.icon} {s}</div></div>);})}
       </div>
     </div>
-  );
+  </div>);
 }
 
+// ── FINANCIAL DASHBOARD ───────────────────────────────────────────────────────
 function FinancialDashboard({grants}){
   const total=grants.reduce((s,g)=>s+(parseFloat((g.amountRequested||"").replace(/[^0-9.]/g,""))||0),0);
   const totalAwarded=grants.reduce((s,g)=>s+(parseFloat((g.awardAmount||"").replace(/[^0-9.]/g,""))||0),0);
-  const C={background:"linear-gradient(160deg,#0d1825,#0a1220)",border:"1px solid rgba(200,131,42,0.16)",borderRadius:13,padding:"18px 20px",boxShadow:"0 8px 32px rgba(0,0,0,0.4)"};
-  return(
-    <div style={{display:"grid",gap:16,maxWidth:1080}}>
-      <div>
-        <div style={{fontSize:9,color:"#c8832a",letterSpacing:4,marginBottom:3}}>RGN FINANCIAL OVERSIGHT</div>
-        <h2 style={{fontFamily:"Georgia,serif",fontSize:26,color:"#f0e0c0",fontWeight:700,margin:0}}>Financial Dashboard</h2>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-        {[{l:"Total Requested",v:`R${(total/1e6).toFixed(2)}M`,c:"#c8a060",sub:"across all grants"},{l:"Total Approved",v:totalAwarded>0?`R${(totalAwarded/1e6).toFixed(2)}M`:"R0.00",c:"#5dc080",sub:"awarded amounts"},{l:"Funds Received",v:"R0.000",c:"#60c0a0",sub:"disbursed to date"},{l:"Funds Outstanding",v:"R0.000",c:"#3a5a3a",sub:"pending disbursement"}].map(s=>(
-          <div key={s.l} style={{...C,padding:"16px 18px",textAlign:"center"}}>
-            <div style={{fontSize:9,color:"#3a4a3a",letterSpacing:2,textTransform:"uppercase",marginBottom:7}}>{s.l}</div>
-            <div style={{fontFamily:"Georgia,serif",fontSize:28,fontWeight:700,color:s.c,lineHeight:1,marginBottom:3}}>{s.v}</div>
-            <div style={{fontSize:10,color:"#2a3a2a"}}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div style={C}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>💰 Grant Financial Summary</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:8}}>
-          {["Grant","Stage","Requested","Award Status"].map(h=><div key={h} style={{fontSize:9,color:"#2a3a4a",letterSpacing:1,fontWeight:700,textTransform:"uppercase"}}>{h}</div>)}
-        </div>
-        {grants.map(g=>{const sc=STAGE_COLORS[g.status]||STAGE_COLORS["Opportunity Identified"];return(
-          <div key={g.id} style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,padding:"9px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:8,marginBottom:6,alignItems:"center"}}>
-            <div><div style={{fontSize:13,fontFamily:"Georgia,serif",color:"#c0b0a0"}}>{g.grantName}</div><div style={{fontSize:11,color:"#3a4a5a"}}>{g.funderName}</div></div>
-            <span style={{fontSize:11,padding:"2px 8px",borderRadius:7,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`,display:"inline-block"}}>{g.status}</span>
-            <div style={{fontFamily:"Georgia,serif",fontSize:13,color:"#c8a060"}}>{g.amountRequested||"—"}</div>
-            <div>{g.awardAmount?<span style={{fontSize:12,color:"#5dc080",fontFamily:"Georgia,serif",fontWeight:600}}>{g.awardAmount} ✓</span>:<span style={{fontSize:11,color:"#3a4a5a"}}>Pending</span>}</div>
-          </div>
-        );})}
-      </div>
-      <div style={C}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:6}}>ℹ️ Getting Started with Financial Tracking</div>
-        <p style={{fontSize:13,color:"#6a7a5a",lineHeight:1.8,margin:0}}>Once grants are awarded, click into each grant → Edit → Award tab to log actual award amounts, disbursement tranches, and budget vs actuals. The Financial Dashboard will populate automatically with received vs outstanding funds, burn rate, and variance analysis.</p>
-      </div>
+  const totalDisbRec=grants.reduce((s,g)=>s+(g.disbursements||[]).filter(d=>d.status==="Received").reduce((s2,d)=>s2+(parseFloat(d.amount)||0),0),0);
+  return(<div style={{display:"grid",gap:16,maxWidth:1000}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:22,color:"#f0e0c0",fontWeight:700}}>Financial Dashboard</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+      {[{l:"Pipeline Value",v:`R${(total/1e6).toFixed(1)}M`,c:"#c8a060"},{l:"Total Awarded",v:totalAwarded>0?`R${(totalAwarded/1e6).toFixed(2)}M`:"R0",c:"#60c880"},{l:"Funds Received",v:`R${(totalDisbRec/1e3).toFixed(1)}K`,c:"#60c0a0"},{l:"Outstanding",v:`R${Math.max(0,(totalAwarded-totalDisbRec)/1e3).toFixed(1)}K`,c:"#ff9070"}].map(s=>(<div key={s.l} style={CB}><div style={{fontSize:9,color:"#3a4a3a",letterSpacing:2,marginBottom:7}}>{s.l}</div><div style={{fontFamily:"Georgia,serif",fontSize:28,fontWeight:700,color:s.c,lineHeight:1}}>{s.v}</div></div>))}
     </div>
-  );
+    <div style={CB}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>💰 Grant Financial Summary</div>
+      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,marginBottom:8}}>
+        {["Grant","Stage","Requested","Awarded","Received"].map(h=><div key={h} style={{fontSize:9,color:"#2a3a4a",letterSpacing:1,fontWeight:700,textTransform:"uppercase"}}>{h}</div>)}
+      </div>
+      {grants.map(g=>{
+        const disbRec=(g.disbursements||[]).filter(d=>d.status==="Received").reduce((s,d)=>s+(parseFloat(d.amount)||0),0);
+        const sc=SC[g.status]||SC["Opportunity Identified"];
+        return(<div key={g.id} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 1fr",gap:8,padding:"9px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:8,marginBottom:6,alignItems:"center"}}>
+          <div><div style={{fontSize:13,fontFamily:"Georgia,serif",color:"#c0b0a0"}}>{g.grantName}</div><div style={{fontSize:11,color:"#3a4a5a"}}>{g.funderName}</div></div>
+          <span style={{fontSize:11,padding:"2px 8px",borderRadius:7,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`,display:"inline-block"}}>{g.status}</span>
+          <div style={{fontFamily:"Georgia,serif",fontSize:13,color:"#c8a060"}}>{g.amountRequested||"—"}</div>
+          <div>{g.awardAmount?<span style={{fontSize:12,color:"#5dc080",fontFamily:"Georgia,serif",fontWeight:600}}>{g.awardAmount} ✓</span>:<span style={{fontSize:11,color:"#3a4a5a"}}>Pending</span>}</div>
+          <div style={{fontFamily:"Georgia,serif",fontSize:13,color:disbRec>0?"#60c0a0":"#2a3a4a"}}>{disbRec>0?`R${disbRec.toLocaleString()}`:"—"}</div>
+        </div>);
+      })}
+    </div>
+  </div>);
 }
 
+// ── REPORTS ───────────────────────────────────────────────────────────────────
 function Reports({grants}){
-  const byStage=STAGES.map(s=>({stage:s,count:grants.filter(g=>g.status===s).length})).filter(s=>s.count>0);
-  const upcoming=grants.map(g=>{const d=g.fullProposalDeadline||g.loiDeadline||g.internalReviewDeadline||g.followupDate;return{...g,_d:d,_days:d?daysUntil(d):null};}).filter(g=>g._days!==null&&g._days>=0).sort((a,b)=>a._days-b._days).slice(0,8);
   const total=grants.reduce((s,g)=>s+(parseFloat((g.amountRequested||"").replace(/[^0-9.]/g,""))||0),0);
   const totalAwarded=grants.reduce((s,g)=>s+(parseFloat((g.awardAmount||"").replace(/[^0-9.]/g,""))||0),0);
-  const C={background:"linear-gradient(160deg,#0d1825,#0a1220)",border:"1px solid rgba(200,131,42,0.16)",borderRadius:13,padding:"18px 20px",boxShadow:"0 6px 28px rgba(0,0,0,0.4)"};
-  return(
-    <div style={{display:"grid",gap:16,maxWidth:960}}>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-        {[{l:"Total Opportunities",v:grants.length,c:"#e0d0b0"},{l:"Awarded",v:grants.filter(g=>["Awarded","Implementation","Reporting","Completed"].includes(g.status)).length,c:"#60c880"},{l:"Pipeline Value",v:`R${(total/1e6).toFixed(1)}M`,c:"#c8a060"},{l:"Total Awarded",v:totalAwarded>0?`R${(totalAwarded/1e6).toFixed(1)}M`:"—",c:"#5dc080"},{l:"Declined",v:grants.filter(g=>g.status==="Declined").length,c:"#907090"},{l:"Archived",v:grants.filter(g=>g.status==="Archived"||g.isArchived).length,c:"#505050"},{l:"Reapplication Eligible",v:grants.filter(g=>g.reapplicationFlag||g.status==="Reapplication Eligible").length,c:"#7090c0"},{l:"Avg Alignment",v:grants.length>0?(grants.reduce((s,g)=>s+(g.strategicAlignmentScore||0),0)/grants.length).toFixed(1)+"★":"—",c:"#c8832a"}].map(s=>(<div key={s.l} style={C}><div style={{fontSize:9,color:"#2a3a2a",letterSpacing:2,textTransform:"uppercase",marginBottom:7}}>{s.l}</div><div style={{fontFamily:"Georgia,serif",fontSize:24,fontWeight:700,color:s.c,lineHeight:1}}>{s.v}</div></div>))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-        <div style={C}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>Pipeline by Stage</div>{byStage.map(s=>{const sc=STAGE_COLORS[s.stage];const pct=grants.length>0?(s.count/grants.length)*100:0;return(<div key={s.stage} style={{marginBottom:9}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:12,color:"#6a7a8a"}}>{STAGE_GUIDE[s.stage]?.icon} {s.stage}</span><span style={{fontSize:12,color:sc.dot,fontWeight:600}}>{s.count}</span></div><div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:`linear-gradient(90deg,${sc.dot},${sc.text})`,borderRadius:2}}/></div></div>);})}</div>
-        <div style={C}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>Upcoming Deadlines</div>{upcoming.length===0&&<div style={{fontSize:13,color:"#1a2a3a",fontStyle:"italic"}}>No upcoming deadlines.</div>}{upcoming.map(g=>{const u=urgCls(g._days);return(<div key={g.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",paddingBottom:9,marginBottom:9,borderBottom:"1px solid rgba(255,255,255,0.04)"}}><div><div style={{fontSize:13,color:"#c0b0a0",fontFamily:"Georgia,serif"}}>{g.funderName}</div><div style={{fontSize:11,color:"#2a3a4a"}}>{fd(g._d)}</div></div><span style={{fontSize:12,fontWeight:700,color:US[u].t}}>{g._days}d</span></div>);})}</div>
-      </div>
-      <div style={C}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>Universal Proposal Messaging — RGN Pillars</div><div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>{[{i:"⚖️",t:"Constitutional Framing",d:"Frame as closing a constitutional access-to-justice gap — not charity."},{i:"📊",t:"Lead with Data",d:"161K annual CCMA referrals · 35% abandoned · 60% unorganised workers."},{i:"🏙️",t:"Township Credibility",d:"15 years in Soweto & Thembisa — rare, bankable track record."},{i:"💼",t:"Economic ROI",d:"Every R1M = 60 workers represented + 1,000 educated."},{i:"🎓",t:"Youth Development",d:"20 candidate attorneys/year, 40% permanent = 8 new legal jobs."},{i:"🔄",t:"Sustainability",d:"After Year 3, self-sustaining via Section 18A + SETA partnerships."}].map(m=>(<div key={m.t} style={{background:"rgba(200,131,42,0.05)",border:"1px solid rgba(200,131,42,0.12)",borderRadius:9,padding:"12px"}}><div style={{fontSize:18,marginBottom:6}}>{m.i}</div><div style={{fontSize:12,fontWeight:700,color:"#c8a060",marginBottom:4}}>{m.t}</div><div style={{fontSize:12,color:"#5a6a5a",lineHeight:1.75}}>{m.d}</div></div>))}</div></div>
+  const byStage=STAGES.map(s=>({stage:s,count:grants.filter(g=>g.status===s).length})).filter(s=>s.count>0);
+  return(<div style={{display:"grid",gap:16,maxWidth:960}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:22,color:"#f0e0c0",fontWeight:700}}>Reports & Strategy</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+      {[{l:"Total",v:grants.length,c:"#e0d0b0"},{l:"Awarded",v:grants.filter(g=>["Awarded","Implementation","Reporting","Completed"].includes(g.status)).length,c:"#60c880"},{l:"Pipeline Value",v:`R${(total/1e6).toFixed(1)}M`,c:"#c8a060"},{l:"Total Awarded",v:totalAwarded>0?`R${(totalAwarded/1e6).toFixed(1)}M`:"—",c:"#5dc080"},{l:"Declined",v:grants.filter(g=>g.status==="Declined").length,c:"#907090"},{l:"Archived",v:grants.filter(g=>g.isArchived||g.status==="Archived").length,c:"#505050"},{l:"Avg Alignment",v:grants.length>0?(grants.reduce((s,g)=>s+(g.stars||0),0)/grants.length).toFixed(1)+"★":"—",c:"#c8832a"},{l:"In Research",v:grants.filter(g=>["Opportunity Identified","Researching"].includes(g.status)).length,c:"#7090c0"}].map(s=>(<div key={s.l} style={CB}><div style={{fontSize:9,color:"#2a3a2a",letterSpacing:2,textTransform:"uppercase",marginBottom:7}}>{s.l}</div><div style={{fontFamily:"Georgia,serif",fontSize:24,fontWeight:700,color:s.c,lineHeight:1}}>{s.v}</div></div>))}
     </div>
-  );
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
+      <div style={CB}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>Pipeline by Stage</div>{byStage.map(s=>{const sc=SC[s.stage];const pct=grants.length>0?(s.count/grants.length)*100:0;return(<div key={s.stage} style={{marginBottom:9}}><div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:12,color:"#6a7a8a"}}>{STAGE_GUIDE[s.stage]?.icon} {s.stage}</span><span style={{fontSize:12,color:sc.dot,fontWeight:600}}>{s.count}</span></div><div style={{height:4,background:"rgba(255,255,255,0.05)",borderRadius:2,overflow:"hidden"}}><div style={{width:`${pct}%`,height:"100%",background:`linear-gradient(90deg,${sc.dot},${sc.text})`,borderRadius:2}}/></div></div>);})}</div>
+      <div style={CB}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700,marginBottom:14}}>Universal Messaging — RGN Pillars</div><div style={{display:"grid",gap:8}}>{[{i:"⚖️",t:"Constitutional Framing",d:"Frame as closing a constitutional access-to-justice gap — not charity."},{i:"📊",t:"Lead with Data",d:"161K annual CCMA referrals · 35% abandoned · 60% unorganised workers."},{i:"🏙️",t:"Township Credibility",d:"15 years in Soweto & Thembisa — rare, bankable track record."},{i:"💼",t:"Economic ROI",d:"Every R1M = 60 workers represented + 1,000 educated."}].map(m=>(<div key={m.t} style={{background:"rgba(200,131,42,0.04)",border:"1px solid rgba(200,131,42,0.1)",borderRadius:8,padding:"9px 12px",display:"flex",gap:9}}><span style={{fontSize:16,flexShrink:0}}>{m.i}</span><div><div style={{fontSize:11,fontWeight:700,color:"#c8a060",marginBottom:2}}>{m.t}</div><div style={{fontSize:11,color:"#5a6a5a",lineHeight:1.65}}>{m.d}</div></div></div>))}</div></div>
+    </div>
+  </div>);
 }
 
+// ── SECTOR VIEW ───────────────────────────────────────────────────────────────
+function SectorView({grants,onSelect}){
+  const bySector={};grants.forEach(g=>(g.sectors||[]).forEach(s=>{if(!bySector[s])bySector[s]=[];bySector[s].push(g);}));
+  return(<div style={{display:"grid",gap:14,maxWidth:1100}}>
+    <div style={{fontFamily:"Georgia,serif",fontSize:22,color:"#f0e0c0",fontWeight:700}}>Sector View</div>
+    {Object.entries(bySector).map(([sector,sg])=>(<div key={sector} style={CB}><div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}><div style={{fontFamily:"Georgia,serif",fontSize:14,color:"#e0d0b0",fontWeight:700}}>{sector}</div><span style={{fontSize:12,color:"#7090c0",fontWeight:600}}>{sg.length} grant{sg.length!==1?"s":""}</span></div><div style={{display:"grid",gap:7}}>{sg.map(g=>{const sc=SC[g.status]||SC["Opportunity Identified"];return(<div key={g.id} onClick={()=>onSelect(g)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 12px",background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.06)",borderRadius:8,cursor:"pointer"}}><div><div style={{fontSize:13,color:"#c0b0a0",fontFamily:"Georgia,serif"}}>{g.grantName}</div><div style={{fontSize:11,color:"#3a4a5a"}}>{g.funderName} · {g.lead||"Unassigned"}</div></div><div style={{display:"flex",gap:8,alignItems:"center"}}><span style={{fontSize:11,padding:"2px 8px",borderRadius:7,background:sc.bg,color:sc.text,border:`1px solid ${sc.border}`}}>{g.status}</span><span style={{fontSize:12,fontFamily:"Georgia,serif",color:"#c8a060"}}>{g.amountRequested||"—"}</span></div></div>);})}</div></div>))}
+    {Object.keys(bySector).length===0&&<div style={{fontSize:13,color:"#2a3a4a",fontStyle:"italic",textAlign:"center",padding:40}}>No sectors assigned yet.</div>}
+  </div>);
+}
+
+// ── TEAM MODAL ────────────────────────────────────────────────────────────────
 function TeamModal({team,onSave,onClose}){
   const[members,setMembers]=useState([...team]);const[nm,setNm]=useState("");
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:70,backdropFilter:"blur(8px)"}} onClick={onClose}>
-      <div style={{background:"linear-gradient(160deg,#0a1525,#07101c)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:14,width:"100%",maxWidth:400,padding:24,boxShadow:"0 40px 100px rgba(0,0,0,0.9)"}} onClick={e=>e.stopPropagation()}>
-        <div style={{fontFamily:"Georgia,serif",fontSize:18,color:"#e0d0b0",fontWeight:700,marginBottom:16}}>Manage Team</div>
-        <div style={{display:"grid",gap:7,marginBottom:14}}>
-          {members.map((m,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:7,padding:"8px 13px"}}><span style={{fontSize:13,color:"#c0b0a0"}}>{m}</span><button onClick={()=>setMembers(p=>p.filter((_,j)=>j!==i))} style={{background:"transparent",border:"none",color:"#6a2a2a",cursor:"pointer",fontSize:15,padding:"0 3px"}}>×</button></div>))}
-        </div>
-        <div style={{display:"flex",gap:7,marginBottom:16}}>
-          <input style={{...I,flex:1}} placeholder="Add team member" value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&nm.trim()){setMembers(p=>[...p,nm.trim()]);setNm("");}}}/>
-          <button onClick={()=>{if(nm.trim()){setMembers(p=>[...p,nm.trim()]);setNm("");}}} style={{background:"rgba(200,131,42,0.15)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"9px 14px",cursor:"pointer",fontSize:13,fontWeight:700}}>Add</button>
-        </div>
-        <div style={{display:"flex",justifyContent:"flex-end",gap:9}}>
-          <button onClick={onClose} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#5a6a7a",padding:"8px 18px",fontSize:13,cursor:"pointer"}}>Cancel</button>
-          <button onClick={()=>{onSave(members);onClose();}} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:7,color:"#fff",padding:"8px 22px",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:2}}>SAVE</button>
-        </div>
+  return(<div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.8)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:70,backdropFilter:"blur(8px)"}} onClick={onClose}>
+    <div style={{background:"linear-gradient(160deg,#0a1525,#07101c)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:14,width:"100%",maxWidth:400,padding:24}} onClick={e=>e.stopPropagation()}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:18,color:"#e0d0b0",fontWeight:700,marginBottom:16}}>Manage Team</div>
+      <div style={{display:"grid",gap:7,marginBottom:14}}>{members.map((m,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:7,padding:"8px 13px"}}><span style={{fontSize:13,color:"#c0b0a0"}}>{m}</span><button onClick={()=>setMembers(p=>p.filter((_,j)=>j!==i))} style={{background:"transparent",border:"none",color:"#6a2a2a",cursor:"pointer",fontSize:15,padding:"0 3px"}}>×</button></div>))}</div>
+      <div style={{display:"flex",gap:7,marginBottom:16}}>
+        <input style={{...I,flex:1}} placeholder="Add team member" value={nm} onChange={e=>setNm(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&nm.trim()){setMembers(p=>[...p,nm.trim()]);setNm("");}}}/>
+        <button onClick={()=>{if(nm.trim()){setMembers(p=>[...p,nm.trim()]);setNm("");}}} style={{background:"rgba(200,131,42,0.15)",border:"1px solid rgba(200,131,42,0.3)",borderRadius:7,color:"#c8832a",padding:"9px 14px",cursor:"pointer",fontSize:13,fontWeight:700,fontFamily:"inherit"}}>Add</button>
+      </div>
+      <div style={{display:"flex",justifyContent:"flex-end",gap:9}}>
+        <button onClick={onClose} style={{background:"transparent",border:"1px solid rgba(255,255,255,0.1)",borderRadius:7,color:"#5a6a7a",padding:"8px 18px",fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>Cancel</button>
+        <button onClick={()=>{onSave(members);onClose();}} style={{background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:7,color:"#fff",padding:"8px 22px",fontSize:13,fontWeight:700,cursor:"pointer",letterSpacing:2,fontFamily:"inherit"}}>SAVE</button>
       </div>
     </div>
-  );
+  </div>);
 }
 
+// ── NOTIFICATIONS PANEL ───────────────────────────────────────────────────────
+function NotificationsPanel({notifications,currentUser,onMarkRead,onClose}){
+  const mine=(notifications||[]).filter(n=>n.to===currentUser&&!n.read);
+  return(<div style={{position:"fixed",top:0,right:0,bottom:0,width:340,background:"linear-gradient(180deg,#0a1525,#07101c)",borderLeft:"1px solid rgba(200,131,42,0.2)",boxShadow:"-20px 0 60px rgba(0,0,0,0.7)",zIndex:55,display:"flex",flexDirection:"column"}}>
+    <div style={{padding:"18px 20px",borderBottom:"1px solid rgba(200,131,42,0.15)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>Notifications</div>
+      <button onClick={onClose} style={{background:"none",border:"none",color:"#3a4a5a",cursor:"pointer",fontSize:18}}>×</button>
+    </div>
+    <div style={{flex:1,overflowY:"auto",padding:14}}>
+      {mine.length===0&&<div style={{fontSize:13,color:"#2a3a4a",fontStyle:"italic",textAlign:"center",padding:30}}>No new notifications for {currentUser}.</div>}
+      {mine.map((n,i)=>(<div key={i} style={{background:"rgba(200,131,42,0.06)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:10,padding:"13px 15px",marginBottom:10}}>
+        <div style={{fontSize:11,color:"#c8832a",fontWeight:700,marginBottom:4}}>{n.type==="review_request"?"📨 Review Requested":n.type==="review_complete"?"✅ Review Complete":"🔔 Notification"}</div>
+        <div style={{fontSize:13,color:"#8a8a7a",lineHeight:1.75,marginBottom:8}}>{n.message}</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:10,color:"#2a3a4a"}}>{fts(n.ts)}</span>
+          <button onClick={()=>onMarkRead(i)} style={{background:"rgba(200,131,42,0.1)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:5,color:"#c8832a",padding:"4px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Mark read</button>
+        </div>
+      </div>))}
+    </div>
+  </div>);
+}
+
+
+// ── APP ───────────────────────────────────────────────────────────────────────
 export default function App(){
-  const[grants,setGrants]=useState(SEED_GRANTS);
+  const[grants,setGrants]=useState(()=>{
+    try{const s=localStorage.getItem("rgn_v6");return s?JSON.parse(s):SEED;}
+    catch{return SEED;}
+  });
   const[team,setTeam]=useState(DEFAULT_TEAM);
   const[view,setView]=useState("executive");
-  const[selected,setSelected]=useState(null);
+  const[selectedId,setSelectedId]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
   const[showTeam,setShowTeam]=useState(false);
   const[filterLead,setFilterLead]=useState("All");
   const[filterStatus,setFilterStatus]=useState("All");
   const[showArchived,setShowArchived]=useState(false);
   const[search,setSearch]=useState("");
+  const[currentUser,setCurrentUser]=useState("Director");
+  const[notifications,setNotifications]=useState([]);
+  const[showNotifs,setShowNotifs]=useState(false);
 
-  function upsertGrant(g){setGrants(gs=>{const i=gs.findIndex(x=>x.id===g.id);if(i>=0){const n=[...gs];n[i]=g;return n;}return[...gs,g];});setSelected(g);}
+  // Persist grants to localStorage
+  useEffect(()=>{try{localStorage.setItem("rgn_v6",JSON.stringify(grants));}catch(e){};},[grants]);
 
-  const urgent=useMemo(()=>grants.map(g=>{const d=g.internalReviewDeadline||g.loiDeadline||g.fullProposalDeadline;const dy=d?daysUntil(d):null;return{...g,_dy:dy,_d:d};}).filter(g=>g._dy!==null&&g._dy>=0&&g._dy<=7&&!["Archived","Declined","Closed Before Applying"].includes(g.status)).sort((a,b)=>a._dy-b._dy).slice(0,4),[grants]);
+  function upsertGrant(g){
+    setGrants(gs=>{
+      const i=gs.findIndex(x=>x.id===g.id);
+      if(i>=0){const n=[...gs];n[i]=g;return n;}
+      return[...gs,g];
+    });
+  }
+  function deleteGrant(id){setGrants(gs=>gs.filter(g=>g.id!==id));setSelectedId(null);}
+  function archiveGrant(id){setGrants(gs=>gs.map(g=>g.id===id?{...g,isArchived:true,status:"Archived"}:g));setSelectedId(null);}
+  function addNotification(n){setNotifications(prev=>[n,...prev]);}
+  function markNotifRead(i){setNotifications(prev=>prev.map((n,j)=>j===i?{...n,read:true}:n));}
+
+  const unread=notifications.filter(n=>n.to===currentUser&&!n.read).length;
+  const urgent=useMemo(()=>grants.map(g=>{
+    const d=g.internalDeadline||g.loiDeadline||g.fullDeadline;
+    const dy=d?daysUntil(d):null;
+    return{...g,_dy:dy,_d:d};
+  }).filter(g=>g._dy!==null&&g._dy>=0&&g._dy<=7&&!["Archived","Declined","Closed Before Applying"].includes(g.status)).sort((a,b)=>a._dy-b._dy).slice(0,4),[grants]);
 
   const filtered=useMemo(()=>grants.filter(g=>{
     if(!showArchived&&(g.status==="Archived"||g.status==="Closed Before Applying"||g.isArchived))return false;
-    if(filterLead!=="All"&&g.assignedLead!==filterLead)return false;
+    if(filterLead!=="All"&&g.lead!==filterLead)return false;
     if(filterStatus!=="All"&&g.status!==filterStatus)return false;
-    if(search){const q=search.toLowerCase();if(!g.grantName.toLowerCase().includes(q)&&!g.funderName.toLowerCase().includes(q)&&!(g.pillar||"").toLowerCase().includes(q)&&!(g.sectors||[]).join(" ").toLowerCase().includes(q))return false;}
+    if(search){const q=search.toLowerCase();if(!g.grantName.toLowerCase().includes(q)&&!g.funderName.toLowerCase().includes(q)&&!(g.pillar||"").toLowerCase().includes(q))return false;}
     return true;
   }),[grants,filterLead,filterStatus,showArchived,search]);
 
   const total=useMemo(()=>grants.reduce((s,g)=>s+(parseFloat((g.amountRequested||"").replace(/[^0-9.]/g,""))||0),0),[grants]);
   const activeGrants=grants.filter(g=>!["Archived","Declined","Closed Before Applying"].includes(g.status)&&!g.isArchived);
-  const sel={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:8,padding:"7px 12px",color:"#c0b0a0",fontSize:13,outline:"none",cursor:"pointer",fontFamily:"inherit"};
 
+  const selectedGrant=selectedId?grants.find(g=>g.id===selectedId):null;
+
+  const sel={background:"rgba(255,255,255,0.05)",border:"1px solid rgba(200,131,42,0.2)",borderRadius:8,padding:"7px 12px",color:"#c0b0a0",fontSize:13,outline:"none",cursor:"pointer",fontFamily:"inherit"};
   const NAV=[
     {id:"executive",label:"Executive Overview",icon:"◆"},
     {id:"pipeline",label:"Kanban Pipeline",icon:"▦"},
@@ -994,96 +1050,107 @@ export default function App(){
         ::-webkit-scrollbar-thumb{background:rgba(200,131,42,0.4);border-radius:2px}
         select option{background:#0d1825;color:#c0b0a0}
         button:disabled{opacity:0.3!important;cursor:not-allowed!important}
-        tr:hover td{background:rgba(200,131,42,0.025)}
-        input:focus,textarea:focus,select:focus{border-color:rgba(200,131,42,0.5)!important}
+        tr:hover td{background:rgba(200,131,42,0.025)!important}
+        input:focus,textarea:focus,select:focus{border-color:rgba(200,131,42,0.5)!important;outline:none!important}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
       `}</style>
 
       {/* SIDEBAR */}
       <div style={{width:224,flexShrink:0,background:"linear-gradient(180deg,#07101c,#060c14)",borderRight:"1px solid rgba(200,131,42,0.2)",display:"flex",flexDirection:"column",boxShadow:"4px 0 30px rgba(0,0,0,0.6)"}}>
-        <div style={{padding:"20px 16px 14px",borderBottom:"1px solid rgba(200,131,42,0.12)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:7}}>
-            <div style={{width:38,height:38,borderRadius:"50%",background:"linear-gradient(135deg,#c8832a,#7a4a10)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 20px rgba(200,131,42,0.45)",flexShrink:0,fontSize:18}}>⚖</div>
-            <div>
-              <div style={{fontFamily:"Georgia,serif",fontSize:20,fontWeight:700,color:"#e8c88a",letterSpacing:1,lineHeight:1.1}}>RGN</div>
-              <div style={{fontSize:9,color:"#5a4a3a",letterSpacing:3,textTransform:"uppercase"}}>Labour Desk</div>
-            </div>
+        <div style={{padding:"16px 14px 12px",borderBottom:"1px solid rgba(200,131,42,0.12)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:7}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:"linear-gradient(135deg,#c8832a,#7a4a10)",display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 4px 16px rgba(200,131,42,0.45)",flexShrink:0,fontSize:16}}>⚖</div>
+            <div><div style={{fontFamily:"Georgia,serif",fontSize:19,fontWeight:700,color:"#e8c88a",letterSpacing:1,lineHeight:1.1}}>RGN</div><div style={{fontSize:9,color:"#5a4a3a",letterSpacing:3}}>LABOUR DESK</div></div>
           </div>
-          <div style={{fontSize:9,color:"#2a3a4a",letterSpacing:3,textTransform:"uppercase"}}>Grant & Programme CRM v4</div>
-          <div style={{marginTop:7,display:"flex",alignItems:"center",gap:5}}>
-            <div style={{width:5,height:5,borderRadius:"50%",background:"#c8832a",boxShadow:"0 0 6px rgba(200,131,42,0.6)"}}/>
-            <span style={{fontSize:10,color:"#7a6a5a"}}>Local mode · Persistent</span>
-          </div>
+          <div style={{fontSize:9,color:"#2a3a4a",letterSpacing:2}}>GRANT & PROGRAMME CRM v6</div>
+          <div style={{marginTop:6,display:"flex",alignItems:"center",gap:5}}><div style={{width:5,height:5,borderRadius:"50%",background:"#c8832a",boxShadow:"0 0 6px rgba(200,131,42,0.6)"}}/><span style={{fontSize:9,color:"#7a6a5a"}}>Local mode · Persistent</span></div>
         </div>
-        <div style={{padding:"11px 16px",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+
+        {/* User switcher */}
+        <div style={{padding:"8px 12px",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
+          <div style={{fontSize:9,color:"#2a3a4a",letterSpacing:2,marginBottom:4}}>VIEWING AS</div>
+          <select value={currentUser} onChange={e=>setCurrentUser(e.target.value)} style={{...sel,width:"100%",fontSize:12,padding:"6px 9px"}}>
+            {team.map(m=><option key={m}>{m}</option>)}
+          </select>
+        </div>
+
+        <div style={{padding:"9px 12px",borderBottom:"1px solid rgba(255,255,255,0.04)"}}>
           {[{l:"Active Grants",v:activeGrants.length,c:"#c0b0a0"},{l:"Pipeline Value",v:`R${(total/1e6).toFixed(1)}M`,c:"#c8a060"},{l:"Urgent (≤7d)",v:urgent.length,c:urgent.length>0?"#ff8070":"#1a2a3a"}].map(s=>(
-            <div key={s.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-              <span style={{fontSize:11,color:"#2a3a4a"}}>{s.l}</span>
-              <span style={{fontSize:13,fontFamily:"Georgia,serif",fontWeight:700,color:s.c}}>{s.v}</span>
+            <div key={s.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+              <span style={{fontSize:10,color:"#2a3a4a"}}>{s.l}</span>
+              <span style={{fontSize:12,fontFamily:"Georgia,serif",fontWeight:700,color:s.c}}>{s.v}</span>
             </div>
           ))}
         </div>
-        <nav style={{flex:1,padding:"8px",display:"grid",gap:2}}>
+
+        <nav style={{flex:1,padding:"7px",display:"grid",gap:2}}>
           {NAV.map(item=>(
-            <button key={item.id} onClick={()=>setView(item.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",textAlign:"left",transition:"all 0.15s",background:view===item.id?"rgba(200,131,42,0.14)":"transparent",color:view===item.id?"#c8a060":"#3a4a5a",border:view===item.id?"1px solid rgba(200,131,42,0.26)":"1px solid transparent"}}>
-              <span style={{fontSize:13,flexShrink:0}}>{item.icon}</span>{item.label}
+            <button key={item.id} onClick={()=>setView(item.id)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:7,fontSize:12,fontWeight:500,cursor:"pointer",textAlign:"left",background:view===item.id?"rgba(200,131,42,0.14)":"transparent",color:view===item.id?"#c8a060":"#3a4a5a",border:view===item.id?"1px solid rgba(200,131,42,0.26)":"1px solid transparent",fontFamily:"inherit"}}>
+              <span style={{fontSize:12,flexShrink:0}}>{item.icon}</span>{item.label}
             </button>
           ))}
-          <div style={{height:1,background:"rgba(255,255,255,0.04)",margin:"5px 0"}}/>
-          <button onClick={()=>setShowTeam(true)} style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:7,fontSize:12,cursor:"pointer",background:"transparent",color:"#2a3a4a",border:"1px solid transparent",textAlign:"left"}}>👤 Manage Team</button>
-          <button onClick={()=>setShowArchived(a=>!a)} style={{width:"100%",display:"flex",alignItems:"center",gap:9,padding:"9px 11px",borderRadius:7,fontSize:12,cursor:"pointer",background:showArchived?"rgba(80,80,80,0.12)":"transparent",color:showArchived?"#606060":"#2a3a4a",border:showArchived?"1px solid rgba(80,80,80,0.22)":"1px solid transparent",textAlign:"left"}}>📦 {showArchived?"Hide Archived":"Show Archived"}</button>
+          <div style={{height:1,background:"rgba(255,255,255,0.04)",margin:"4px 0"}}/>
+          <button onClick={()=>setShowTeam(true)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:7,fontSize:12,cursor:"pointer",background:"transparent",color:"#2a3a4a",border:"1px solid transparent",textAlign:"left",fontFamily:"inherit"}}>👤 Manage Team</button>
+          <button onClick={()=>setShowArchived(a=>!a)} style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"8px 10px",borderRadius:7,fontSize:12,cursor:"pointer",background:showArchived?"rgba(80,80,80,0.1)":"transparent",color:showArchived?"#606060":"#2a3a4a",border:showArchived?"1px solid rgba(80,80,80,0.2)":"1px solid transparent",textAlign:"left",fontFamily:"inherit"}}>📦 {showArchived?"Hide":"Show"} Archived</button>
         </nav>
-        <div style={{padding:"9px 8px"}}>
-          <button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:"10px",background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:9,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:2,boxShadow:"0 4px 20px rgba(200,131,42,0.35)"}}>+ NEW GRANT</button>
+
+        <div style={{padding:"8px 8px"}}>
+          <button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:"10px",background:"linear-gradient(135deg,#c8832a,#a06020)",border:"none",borderRadius:9,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",letterSpacing:2,boxShadow:"0 4px 20px rgba(200,131,42,0.35)",fontFamily:"inherit"}}>+ NEW GRANT</button>
         </div>
-        <div style={{padding:"9px 16px 13px",borderTop:"1px solid rgba(255,255,255,0.03)"}}>
-          <div style={{fontSize:9,color:"#141e28",lineHeight:2,letterSpacing:0.5}}>PBO 930082491 · Section 18A<br/>UNITED WE WIN · v4.0</div>
+        <div style={{padding:"7px 14px 11px",borderTop:"1px solid rgba(255,255,255,0.03)"}}>
+          <div style={{fontSize:9,color:"#141e28",lineHeight:2,letterSpacing:0.5}}>PBO 930082491 · Section 18A<br/>UNITED WE WIN · v6.0</div>
         </div>
       </div>
 
       {/* MAIN */}
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        {/* URGENT BANNER */}
         {urgent.length>0&&(
-          <div style={{flexShrink:0,background:"rgba(140,25,15,0.25)",borderBottom:"1px solid rgba(140,25,15,0.5)",padding:"8px 20px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
-            <span style={{fontSize:11,color:"#ff7060",letterSpacing:3,fontWeight:700,textTransform:"uppercase",flexShrink:0}}>🚨 URGENT DEADLINES</span>
-            {urgent.map(g=>(
-              <button key={g.id} onClick={()=>setSelected(g)} style={{fontSize:11,background:"rgba(140,25,15,0.3)",border:"1px solid rgba(140,25,15,0.55)",color:"#ffb0a0",padding:"3px 11px",borderRadius:20,cursor:"pointer",fontFamily:"inherit"}}>
-                {g.funderName} — {g._dy===0?"TODAY":`${g._dy}d`} ({fd(g._d)})
-              </button>
-            ))}
+          <div style={{flexShrink:0,background:"rgba(140,25,15,0.25)",borderBottom:"1px solid rgba(140,25,15,0.5)",padding:"7px 20px",display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <span style={{fontSize:11,color:"#ff7060",letterSpacing:3,fontWeight:700,flexShrink:0}}>🚨 URGENT DEADLINES</span>
+            {urgent.map(g=>(<button key={g.id} onClick={()=>setSelectedId(g.id)} style={{fontSize:11,background:"rgba(140,25,15,0.3)",border:"1px solid rgba(140,25,15,0.55)",color:"#ffb0a0",padding:"3px 11px",borderRadius:20,cursor:"pointer",fontFamily:"inherit"}}>{g.funderName} — {g._dy===0?"TODAY":`${g._dy}d`} ({fd(g._d)})</button>))}
           </div>
         )}
-        {["pipeline","all"].includes(view)&&(
-          <div style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 20px",borderBottom:"1px solid rgba(255,255,255,0.05)",background:"rgba(7,16,28,0.85)",backdropFilter:"blur(20px)",gap:9,flexWrap:"wrap"}}>
-            <div style={{fontFamily:"Georgia,serif",fontSize:17,color:"#e0d0b0",fontWeight:700}}>{view==="pipeline"?"Kanban Pipeline":"All Grant Applications"}</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
-              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search grants, sectors, pillars…" style={{...sel,width:200}}/>
+
+        {/* TOP BAR for list views */}
+        <div style={{flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 20px",borderBottom:"1px solid rgba(255,255,255,0.05)",background:"rgba(7,16,28,0.85)",backdropFilter:"blur(20px)",gap:9,flexWrap:"wrap"}}>
+          <div style={{fontFamily:"Georgia,serif",fontSize:16,color:"#e0d0b0",fontWeight:700}}>
+            {NAV.find(n=>n.id===view)?.label||""}
+          </div>
+          <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+            {["pipeline","all"].includes(view)&&<>
+              <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search…" style={{...sel,width:180}}/>
               <select value={filterLead} onChange={e=>setFilterLead(e.target.value)} style={sel}><option value="All">All Leads</option>{team.map(m=><option key={m}>{m}</option>)}</select>
               <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={sel}><option value="All">All Stages</option>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
-            </div>
+            </>}
+            {/* Bell */}
+            <button onClick={()=>setShowNotifs(p=>!p)} style={{position:"relative",background:unread>0?"rgba(200,131,42,0.15)":"rgba(255,255,255,0.04)",border:`1px solid ${unread>0?"rgba(200,131,42,0.4)":"rgba(255,255,255,0.1)"}`,borderRadius:8,color:unread>0?"#c8832a":"#3a4a5a",padding:"6px 12px",cursor:"pointer",fontSize:14,fontFamily:"inherit"}}>
+              🔔{unread>0&&<span style={{position:"absolute",top:-5,right:-5,background:"#c8832a",color:"#fff",fontSize:9,fontWeight:700,width:16,height:16,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center"}}>{unread}</span>}
+            </button>
           </div>
-        )}
+        </div>
+
+        {/* CONTENT */}
         <div style={{flex:1,overflow:"auto",padding:16}}>
-          {view==="executive"&&<ExecutiveDashboard grants={grants} onSelect={setSelected}/>}
-          {view==="sector"&&<SectorView grants={grants} onSelect={setSelected}/>}
+          {view==="executive"&&<ExecutiveDashboard grants={grants} onSelect={id=>setSelectedId(id)}/>}
+          {view==="sector"&&<SectorView grants={filtered} onSelect={g=>setSelectedId(g.id)}/>}
           {view==="financial"&&<FinancialDashboard grants={grants}/>}
           {view==="reports"&&<Reports grants={grants}/>}
-          {view==="all"&&<GrantsTable grants={filtered} onSelect={setSelected}/>}
+          {view==="all"&&<GrantsTable grants={filtered} onSelect={g=>setSelectedId(g.id)}/>}
           {view==="pipeline"&&(
             <div style={{display:"flex",gap:9,height:"100%",overflowX:"auto",paddingBottom:6}}>
               {[...STAGES_ACTIVE,...(showArchived?STAGES_TERMINAL:[])].map(stage=>{
-                const cards=filtered.filter(g=>g.status===stage);const sc=STAGE_COLORS[stage];const guide=STAGE_GUIDE[stage];
+                const cards=filtered.filter(g=>g.status===stage);
+                const sc=SC[stage];const guide=STAGE_GUIDE[stage];
                 return(
                   <div key={stage} style={{flexShrink:0,width:220,display:"flex",flexDirection:"column"}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",borderRadius:"8px 8px 0 0",background:`linear-gradient(135deg,${sc.bg},rgba(8,14,26,0.85))`,border:`1px solid ${sc.border}`,borderBottom:"none"}}>
-                      <div style={{display:"flex",alignItems:"center",gap:5,flex:1,minWidth:0}}>
-                        <div style={{width:5,height:5,borderRadius:"50%",background:sc.dot,flexShrink:0}}/>
-                        <span style={{fontSize:10,fontWeight:700,color:sc.text,letterSpacing:1,textTransform:"uppercase",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{guide?.icon} {stage}</span>
-                      </div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 9px",borderRadius:"7px 7px 0 0",background:`linear-gradient(135deg,${sc.bg},rgba(8,14,26,0.85))`,border:`1px solid ${sc.border}`,borderBottom:"none"}}>
+                      <span style={{fontSize:10,fontWeight:700,color:sc.text,letterSpacing:1,textTransform:"uppercase",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{guide?.icon} {stage}</span>
                       <span style={{fontSize:13,fontFamily:"Georgia,serif",fontWeight:700,color:sc.dot,flexShrink:0,marginLeft:3}}>{cards.length}</span>
                     </div>
-                    <div style={{flex:1,overflowY:"auto",padding:"5px",background:"rgba(255,255,255,0.012)",border:`1px solid ${sc.border}`,borderTop:"none",borderRadius:"0 0 8px 8px",minHeight:50,maxHeight:"calc(100vh - 200px)"}}>
-                      {cards.map(g=><Card key={g.id} grant={g} onClick={()=>setSelected(g)}/>)}
-                      {cards.length===0&&<div style={{padding:14,textAlign:"center",fontSize:11,color:"#1a2a3a",fontStyle:"italic",borderRadius:7,border:"1px dashed rgba(255,255,255,0.04)",margin:3}}>No grants</div>}
+                    <div style={{flex:1,overflowY:"auto",padding:5,background:"rgba(255,255,255,0.012)",border:`1px solid ${sc.border}`,borderTop:"none",borderRadius:"0 0 7px 7px",minHeight:50,maxHeight:"calc(100vh - 220px)"}}>
+                      {cards.map(g=><Card key={g.id} grant={g} onClick={()=>setSelectedId(g.id)}/>)}
+                      {cards.length===0&&<div style={{padding:12,textAlign:"center",fontSize:11,color:"#1a2a3a",fontStyle:"italic"}}>No grants</div>}
                     </div>
                   </div>
                 );
@@ -1093,9 +1160,26 @@ export default function App(){
         </div>
       </div>
 
-      {selected&&<Detail grant={grants.find(g=>g.id===selected.id)||selected} team={team} onUpdate={upsertGrant} onClose={()=>setSelected(null)}/>}
-      {showAdd&&<GrantModal team={team} onSave={g=>upsertGrant({...g,id:g.id||uid(),activities:g.activities||[]})} onClose={()=>setShowAdd(false)}/>}
+      {/* FULL-PAGE GRANT DETAIL */}
+      {selectedGrant&&(
+        <GrantDetailPage
+          key={selectedGrant.id}
+          grant={selectedGrant}
+          team={team}
+          currentUser={currentUser}
+          notifications={notifications}
+          onUpdate={upsertGrant}
+          onDelete={deleteGrant}
+          onArchive={archiveGrant}
+          onClose={()=>setSelectedId(null)}
+          onNotify={addNotification}
+        />
+      )}
+
+      {/* MODALS */}
+      {showAdd&&<GrantModal team={team} onSave={g=>{const ng={...g,id:g.id||uid(),activities:g.activities||[],docs:g.docs||DEFAULT_DOCS.map(d=>({...d})),compliance:g.compliance||DEFAULT_COMPLIANCE.map(d=>({...d})),researchNotes:[],drafts:[],reviewMsgs:[],submission:null,award:null,implPlan:[],disbursements:[],budget:[],isArchived:false};upsertGrant(ng);}} onClose={()=>setShowAdd(false)}/>}
       {showTeam&&<TeamModal team={team} onSave={setTeam} onClose={()=>setShowTeam(false)}/>}
+      {showNotifs&&<NotificationsPanel notifications={notifications} currentUser={currentUser} onMarkRead={markNotifRead} onClose={()=>setShowNotifs(false)}/>}
     </div>
   );
 }
